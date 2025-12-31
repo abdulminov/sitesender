@@ -16,7 +16,7 @@ WORKDIR /app
 COPY requirements.txt .
 
 #Устанавливаем библиотеки Python
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt python-dotenv
 
 #Устанавливаем Playwright и браузер Chromium
 RUN pip install playwright && \
