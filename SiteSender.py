@@ -1,6 +1,8 @@
 import os
 import re
 import asyncio
+import subprocess
+from pathlib import Path
 from dotenv import load_dotenv
 from vkbottle.bot import Bot, Message
 from vkbottle import VideoUploader, DocMessagesUploader
@@ -13,15 +15,45 @@ load_dotenv()
 token = os.getenv("BOT_TOKEN")
 bot = Bot(token)
 
+# Если переменная не задана в системе, качаем в текущую папку ./downloads
+raw_path = os.getenv("DOWNLOAD_PATH", "./temp_downloads")
+DOWNLOAD_PATH=Path(raw_path).resolve()
+# Создаем папку, если её нет (важно для первого запуска)
+DOWNLOAD_PATH.mkdir(parents=True, exist_ok=True)
+print(f"Файлы будут сохраняться в: {DOWNLOAD_PATH}")
+
+# 3. Проверяем тип файловой системы
+try:
+    # Используем findmnt для проверки конкретной точки
+    result = subprocess.run(
+        ['findmnt', '-n', '-o', 'FSTYPE', '-T', str(DOWNLOAD_PATH)],
+        capture_output=True,
+        text=True,
+        check=True
+    )
+    fs_type = result.stdout.strip()
+except Exception:
+    fs_type = "unknown"
+
+# 4. Логика уведомления
+if fs_type == "tmpfs":
+    print(f"🚀 Успех: Используется быстрая память (tmpfs) по пути {raw_path}")
+else:
+    print(f"⚠️ ВНИМАНИЕ: Папка {raw_path} находится на обычном диске ({fs_type}).")
+    print("Ресурс ПЗУ (eMMC/SD) под угрозой при частых загрузках!")
+
+
 YDL_OPTIONS = {
     # Принудительно ищем видео в h264 (avc1) и аудио в m4a
     'format': 'bestvideo[vcodec^=avc1][height<=720]+bestaudio[ext=m4a]/best[ext=mp4]/best',
-    'outtmpl': 'video_%(id)s.%(ext)s',
+    'outtmpl': f'{DOWNLOAD_PATH}/video_%(id)s.%(ext)s',
     'noplaylist': True,
     'cookiefile': 'cookies.txt',
     # Добавляем совместимость для mp4
     'merge_output_format': 'mp4',
 }
+
+
 
 
 @bot.on.message()
@@ -85,7 +117,7 @@ async def handle_video(message: Message, url: str):
 
 async def handle_pdf(message: Message, url: str):
     await message.answer(f"📄 Делаю PDF страницы...")
-    file_path = f"page_{message.from_id}.pdf"
+    file_path = f"{DOWNLOAD_PATH}/page_{message.from_id}.pdf"
 
     # Инициализируем переменную браузера заранее
     browser = None
