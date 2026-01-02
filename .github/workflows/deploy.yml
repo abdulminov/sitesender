@@ -9,11 +9,10 @@ jobs:
     runs-on: self-hosted
     steps:
       - name: Notify Start
-        uses: appleboy/telegram-action@master
-        with:
-          to: ${{ secrets.TELEGRAM_CHAT_ID }}
-          token: ${{ secrets.TELEGRAM_TOKEN }}
-          message: "🚀 Деплой начат (ветка: ${{ github.ref_name }})"
+        run: |
+          curl -s -X POST https://api.telegram.org/bot${{ secrets.TELEGRAM_TOKEN }}/sendMessage \
+            -d chat_id=${{ secrets.TELEGRAM_CHAT_ID }} \
+            -d text="🚀 Деплой начат (ветка: ${{ github.ref_name }})"
 
       - name: Check Changes & Pull
         id: check_step
@@ -32,17 +31,17 @@ jobs:
           fi
 
       - name: Notify Build Status
-        uses: appleboy/telegram-action@master
-        with:
-          to: ${{ secrets.TELEGRAM_CHAT_ID }}
-          token: ${{ secrets.TELEGRAM_TOKEN }}
-          message: "🛠 ${{ env.MSG }}"
+        run: |
+          curl -s -X POST https://api.telegram.org/bot${{ secrets.TELEGRAM_TOKEN }}/sendMessage \
+            -d chat_id=${{ secrets.TELEGRAM_CHAT_ID }} \
+            -d text="🛠 ${{ env.MSG }}"
 
       - name: Build Image (if needed)
         if: steps.check_step.outputs.NEED_BUILD == 'true'
         run: |
           cd ~/sitesender
           podman build -t sitesender:latest .
+
 
       - name: Restart Service
         run: |
@@ -51,20 +50,16 @@ jobs:
 
       - name: Notify Success
         if: success()
-        uses: appleboy/telegram-action@master
-        with:
-          to: ${{ secrets.TELEGRAM_CHAT_ID }}
-          token: ${{ secrets.TELEGRAM_TOKEN }}
-          message: |
-            ✅ Деплой завершен!
-            Тип: ${{ steps.check_step.outputs.NEED_BUILD == 'true' && 'Полная пересборка' || 'Быстрый рестарт' }}
-            Автор: ${{ github.actor }}
+        run: |
+          MESSAGE="✅ Деплой завершен!%0AТип: ${{ steps.check_step.outputs.NEED_BUILD == 'true' && 'Полная пересборка' || 'Быстрый рестарт' }}%0AАвтор: ${{ github.actor }}"
+          curl -s -X POST https://api.telegram.org/bot${{ secrets.TELEGRAM_TOKEN }}/sendMessage \
+            -d chat_id=${{ secrets.TELEGRAM_CHAT_ID }} \
+            -d text="$MESSAGE"
 
       - name: Notify Failure
         if: failure()
-        uses: appleboy/telegram-action@master
-        with:
-          to: ${{ secrets.TELEGRAM_CHAT_ID }}
-          token: ${{ secrets.TELEGRAM_TOKEN }}
-          message: "❌ Ошибка при деплое!"
+        run: |
+          curl -s -X POST https://api.telegram.org/bot${{ secrets.TELEGRAM_TOKEN }}/sendMessage \
+            -d chat_id=${{ secrets.TELEGRAM_CHAT_ID }} \
+            -d text="❌ Ошибка при деплое!"
 
