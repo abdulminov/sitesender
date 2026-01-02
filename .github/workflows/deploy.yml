@@ -21,7 +21,7 @@ jobs:
           OLD_HASH=$(cat requirements.txt Containerfile | md5sum)
           git fetch origin main
           git reset --hard origin/main
-          #git clean -fd
+          git clean -f -e temp_downloads/
           NEW_HASH=$(cat requirements.txt Containerfile | md5sum)
 
           if [ "$OLD_HASH" != "$NEW_HASH" ]; then
@@ -47,6 +47,7 @@ jobs:
 
       - name: Restart Service
         run: |
+          export XDG_RUNTIME_DIR=/run/user/$(id -u)
           systemctl --user daemon-reload
           systemctl --user restart container-sitesender-bot.service
 
