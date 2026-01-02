@@ -8,6 +8,12 @@ jobs:
   build_and_deploy:
     runs-on: self-hosted
     steps:
+      - name: Alias podman to docker
+        run: |
+          mkdir -p ~/.local/bin
+          ln -s $(which podman) ~/.local/bin/docker
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
+
       - name: Notify Start
         uses: appleboy/telegram-action@master
         with:
