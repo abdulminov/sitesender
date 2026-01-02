@@ -43,16 +43,14 @@ else:
     print("Ресурс ПЗУ (eMMC/SD) под угрозой при частых загрузках!")
 
 
-YDL_OPTIONS = {
-    # Принудительно ищем видео в h264 (avc1) и аудио в m4a
-    'format': 'bestvideo[vcodec^=avc1][height<=720]+bestaudio[ext=m4a]/best[ext=mp4]/best',
-    'outtmpl': f'{DOWNLOAD_PATH}/video_%(id)s.%(ext)s',
-    'noplaylist': True,
-    'cookiefile': 'cookies.txt',
-    # Добавляем совместимость для mp4
-    'merge_output_format': 'mp4',
-}
-
+def get_ydl_options(height: int):
+    return {
+        'format': f'bestvideo[vcodec^=avc1][height<={height}]+bestaudio[ext=m4a]/best[ext=mp4]/best',
+        'outtmpl': f'{DOWNLOAD_PATH}/video_%(id)s.%(ext)s',
+        'noplaylist': True,
+        'cookiefile': 'cookies.txt',
+        'merge_output_format': 'mp4',
+    }
 
 
 
@@ -79,12 +77,20 @@ async def main_handler(message: Message):
         await handle_pdf(message, full_url)
 
 
-async def handle_video(message: Message, url: str):
-    await message.answer("🎞 Обнаружено видео. Начинаю скачивание...")
+async def handle_video(message: Message, url: str, retry: bool = False):
+    # Если это ретрай, уведомляем пользователя
+    if retry:
+        await message.answer("🔄 Файл слишком большой. Пробую скачать в меньшем качестве (480p)...")
+    else:
+        await message.answer("🎞 Обнаружено видео. Начинаю скачивание...")
+
     filename = ""
+    current_height = 480 if retry else 720
+
     try:
         # Скачивание видео через yt-dlp во внешнем потоке, чтобы не вешать бота
-        with YoutubeDL(YDL_OPTIONS) as ydl:
+        options = get_ydl_options(current_height)
+        with YoutubeDL(options) as ydl:
             info = await asyncio.to_thread(ydl.extract_info, url, download=True)
             filename = ydl.prepare_filename(info)
             title = info.get('title', 'YouTube Video')
@@ -95,6 +101,9 @@ async def handle_video(message: Message, url: str):
 
         # Загружаем видео как ДОКУМЕНТ в личные сообщения
         # Это работает с токеном группы без ограничений
+
+
+
         uploader = DocMessagesUploader(bot.api)
 
         doc = await uploader.upload(
@@ -105,15 +114,18 @@ async def handle_video(message: Message, url: str):
 
         await message.answer(f"🎬 Вот ваше видео: {title}", attachment=doc)
 
-
-
-
     except Exception as e:
-        await message.answer(f"❌ Ошибка видео: {str(e)}")
+        if not retry:
+            if filename and os.path.exists(filename):
+                os.remove(filename)
+            # Пробуем еще раз с качеством 480p
+            return await handle_video(message, url, retry=True)
+        else:
+            await message.answer(f"❌ Не удалось отправить даже в 480p: {str(e)}")
+
     finally:
         if filename and os.path.exists(filename):
             os.remove(filename)
-
 
 async def handle_pdf(message: Message, url: str):
     await message.answer(f"📄 Делаю PDF страницы...")
