@@ -19,7 +19,9 @@ jobs:
         run: |
           cd ~/sitesender
           OLD_HASH=$(cat requirements.txt Containerfile | md5sum)
-          git pull origin main
+          git fetch origin main
+          git reset --hard origin/main
+          git clean -fd
           NEW_HASH=$(cat requirements.txt Containerfile | md5sum)
 
           if [ "$OLD_HASH" != "$NEW_HASH" ]; then
