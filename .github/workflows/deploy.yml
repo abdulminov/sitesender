@@ -1,0 +1,70 @@
+name: Self-Hosted Deploy
+
+on:
+  push:
+    branches: [ main ] # Сработает, когда вы нажмете Push в ветку main
+
+jobs:
+  build_and_deploy:
+    runs-on: self-hosted
+    steps:
+      - name: Notify Start
+        uses: appleboy/telegram-action@master
+        with:
+          to: ${{ secrets.TELEGRAM_CHAT_ID }}
+          token: ${{ secrets.TELEGRAM_TOKEN }}
+          message: "🚀 Деплой начат (ветка: ${{ github.ref_name }})"
+
+      - name: Check Changes & Pull
+        id: check_step
+        run: |
+          cd ~/sitesender
+          OLD_HASH=$(cat requirements.txt Containerfile | md5sum)
+          git pull origin main
+          NEW_HASH=$(cat requirements.txt Containerfile | md5sum)
+
+          if [ "$OLD_HASH" != "$NEW_HASH" ]; then
+            echo "NEED_BUILD=true" >> $GITHUB_OUTPUT
+            echo "MSG=Требуется пересборка..." >> $GITHUB_ENV
+          else
+            echo "NEED_BUILD=false" >> $GITHUB_OUTPUT
+            echo "MSG=Пересборка не требуется, только перезапуск." >> $GITHUB_ENV
+          fi
+
+      - name: Notify Build Status
+        uses: appleboy/telegram-action@master
+        with:
+          to: ${{ secrets.TELEGRAM_CHAT_ID }}
+          token: ${{ secrets.TELEGRAM_TOKEN }}
+          message: "🛠 ${{ env.MSG }}"
+
+      - name: Build Image (if needed)
+        if: steps.check_step.outputs.NEED_BUILD == 'true'
+        run: |
+          cd ~/sitesender
+          podman build -t sitesender:latest .
+
+      - name: Restart Service
+        run: |
+          systemctl --user daemon-reload
+          systemctl --user restart container-sitesender-bot.service
+
+      - name: Notify Success
+        if: success()
+        uses: appleboy/telegram-action@master
+        with:
+          to: ${{ secrets.TELEGRAM_CHAT_ID }}
+          token: ${{ secrets.TELEGRAM_TOKEN }}
+          message: |
+            ✅ Деплой завершен!
+            Тип: ${{ steps.check_step.outputs.NEED_BUILD == 'true' && 'Полная пересборка' || 'Быстрый рестарт' }}
+            Автор: ${{ github.actor }}
+
+      - name: Notify Failure
+        if: failure()
+        uses: appleboy/telegram-action@master
+        with:
+          to: ${{ secrets.TELEGRAM_CHAT_ID }}
+          token: ${{ secrets.TELEGRAM_TOKEN }}
+          message: "❌ Ошибка при деплое!"
+
