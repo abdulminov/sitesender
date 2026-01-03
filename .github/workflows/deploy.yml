@@ -7,6 +7,9 @@ on:
 jobs:
   build_and_deploy:
     runs-on: self-hosted
+    env:
+      XDG_RUNTIME_DIR: /run/user/1003
+      DBUS_SESSION_BUS_ADDRESS: unix:path=/run/user/1003/bus
     steps:
       - name: Notify Start
         run: |
