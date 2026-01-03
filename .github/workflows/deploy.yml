@@ -38,7 +38,7 @@ jobs:
       # 3. Перезапускаем сервис, чтобы бот подхватил новый код или новый образ
       - name: Restart Bot
         run: |
-          systemctl --user restart container-sitesender-bot.service
+          systemctl --user restart container-sitesender-bot.service --no-block
 
       - name: Notify Success
         if: success()
