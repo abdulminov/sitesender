@@ -35,7 +35,8 @@ ExecStopPost=/usr/bin/podman rm \
 	-f \
 	--ignore -t 10 \
 	--cidfile=%t/%n.ctr-id
-Type=notify
+Type=simple
+TimeoutStartSec=300
 NotifyAccess=all
 
 [Install]
