@@ -1,71 +1,47 @@
-name: Self-Hosted Deploy
+name: Optimized Deploy (Volumes)
 
 on:
   push:
-    branches: [ main ] # Сработает, когда вы нажмете Push в ветку main
+    branches: [ main ]
 
 jobs:
-  build_and_deploy:
+  deploy:
     runs-on: self-hosted
     env:
       XDG_RUNTIME_DIR: /run/user/1003
       DBUS_SESSION_BUS_ADDRESS: unix:path=/run/user/1003/bus
+
     steps:
-      - name: Notify Start
-        run: |
-          curl -s -X POST https://api.telegram.org/bot${{ secrets.TELEGRAM_TOKEN }}/sendMessage \
-            -d chat_id=${{ secrets.TELEGRAM_CHAT_ID }} \
-            -d text="🚀 Деплой начат (ветка: ${{ github.ref_name }})"
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-      - name: Check Changes & Pull
-        id: check_step
+      # 1. Синхронизируем код в рабочую папку ~/app
+      - name: Sync Code
         run: |
-          cd ~/sitesender
-          OLD_HASH=$(cat requirements.txt Containerfile | md5sum)
-          git fetch origin main
-          git reset --hard origin/main
-          git clean -f -e temp_downloads/
-          NEW_HASH=$(cat requirements.txt Containerfile | md5sum)
+          # Копируем всё содержимое репозитория в папку приложения
+          rsync -avz --exclude '.git*' ./ /home/github-runner/app/
 
-          if [ "$OLD_HASH" != "$NEW_HASH" ]; then
-            echo "NEED_BUILD=true" >> $GITHUB_OUTPUT
-            echo "MSG=Требуется пересборка..." >> $GITHUB_ENV
+      # 2. Пересобираем образ ТОЛЬКО если изменились Containerfile или requirements.txt
+      - name: Build Image (if system files changed)
+        id: build_check
+        run: |
+          # Проверяем изменения через git diff
+          if git diff --name-only ${{ github.event.before }} ${{ github.sha }} | grep -E 'Containerfile|requirements.txt'; then
+            podman build -t sitesender:latest .
+            echo "built=true" >> $GITHUB_OUTPUT
           else
-            echo "NEED_BUILD=false" >> $GITHUB_OUTPUT
-            echo "MSG=Пересборка не требуется, только перезапуск." >> $GITHUB_ENV
+            echo "built=false" >> $GITHUB_OUTPUT
           fi
 
-      - name: Notify Build Status
+      # 3. Перезапускаем сервис, чтобы бот подхватил новый код или новый образ
+      - name: Restart Bot
         run: |
-          curl -s -X POST https://api.telegram.org/bot${{ secrets.TELEGRAM_TOKEN }}/sendMessage \
-            -d chat_id=${{ secrets.TELEGRAM_CHAT_ID }} \
-            -d text="🛠 ${{ env.MSG }}"
-
-      - name: Build Image (if needed)
-        if: steps.check_step.outputs.NEED_BUILD == 'true'
-        run: |
-          cd ~/sitesender
-          podman build -t sitesender:latest .
-
-
-      - name: Restart Service
-        run: |
-          export XDG_RUNTIME_DIR=/run/user/$(id -u)
-          systemctl --user daemon-reload
           systemctl --user restart container-sitesender-bot.service
 
       - name: Notify Success
         if: success()
         run: |
-          MESSAGE="✅ Деплой завершен!%0AТип: ${{ steps.check_step.outputs.NEED_BUILD == 'true' && 'Полная пересборка' || 'Быстрый рестарт' }}%0AАвтор: ${{ github.actor }}"
-          curl -s -X POST https://api.telegram.org/bot${{ secrets.TELEGRAM_TOKEN }}/sendMessage \
+          MSG="🚀 Деплой успешен! Образ: ${{ steps.build_check.outputs.built == 'true' && 'Обновлен' || 'Без изменений' }}"
+          curl -s -X POST api.telegram.org{{ secrets.TELEGRAM_TOKEN }}/sendMessage \
             -d chat_id=${{ secrets.TELEGRAM_CHAT_ID }} \
-            -d text="$MESSAGE"
-
-      - name: Notify Failure
-        if: failure()
-        run: |
-          curl -s -X POST https://api.telegram.org/bot${{ secrets.TELEGRAM_TOKEN }}/sendMessage \
-            -d chat_id=${{ secrets.TELEGRAM_CHAT_ID }} \
-            -d text="❌ Ошибка при деплое!"
-
+            -d text="$MSG"
