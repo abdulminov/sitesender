@@ -1,0 +1,23 @@
+- name: Hotfix update for yt-dlp inside container
+  hosts: workers
+  become: yes
+  become_user: "{{ app_user }}"
+  tasks:
+    - name: Upgrade yt-dlp inside container
+      containers.podman.podman_container_exec:
+        name: app_bot_1
+        # name: "{{ project_name }}_{{ bot_service_name }}_1"
+        user: root
+        argv:
+          - pip
+          - install
+          - --upgrade
+          - yt-dlp
+          - yt-dlp-ejs
+          - --no-cache-dir
+      register: upgrade_output
+      changed_when: "'Successfully installed' in upgrade_output.stdout"
+
+    - name: Show result
+      debug:
+        msg: "{{ upgrade_output.stdout_lines }}"

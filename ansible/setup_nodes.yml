@@ -1,0 +1,48 @@
+---
+- name: Плейбук Ansible для ТВ приставок
+  hosts: cluster
+  become: yes # указываем, что будем разрешать выполнение из под become_user (root по умолчанию)
+
+  tasks:
+    - name: установка пакета программ
+      apt:
+        name: [htop, curl, net-tools, ca-certificates, gnupg, lsb-release] 
+        update_cache: yes
+        cache_valid_time: 3600 # обновлять только если с последнего обновления прошло более 3600 сек.
+        state: present 
+ 
+    - name: Создать папку для ключей (keyrings)
+      file:
+        path: /etc/apt/keyrings
+        state: directory
+        mode: '0755'
+
+    - name: Добавить GPG-ключ Docker
+      get_url:
+        url: https://download.docker.com/linux/ubuntu/gpg
+        dest: /etc/apt/keyrings/docker.key
+        mode: 0644
+
+    - name: Добавить репозиторий Docker
+      apt_repository:
+        repo: "deb [arch=amd64 signed-by=/etc/apt/keyrings/docker.key] https://download.docker.com/linux/ubuntu {{ ansible_distribution_release }} stable"
+        state: present
+        filename: docker-repo #Создаст файл /etc/apt/source.list.d/docker-repo.list
+
+    - name: Установить Docker
+      apt:
+        name:
+          - docker-ce
+          - docker-ce-cli
+          - containerd.io
+          - docker-buildx-plugin #позволяет собирать образы под разные архитектуры (например, собирать на ноуте образ для ARM-приставок).
+          - docker-compose
+        state: present
+        update_cache: yes
+
+    - name: убедиться, что Docker запущен
+      service:
+        name: docker
+        state: started
+        enabled: yes
+...

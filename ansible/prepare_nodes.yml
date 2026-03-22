@@ -1,0 +1,58 @@
+---
+- name: Подготовка узлов - установка podman
+  hosts: cluster
+  become: yes
+  vars:
+    app_user: vagrant
+
+  tasks:
+    - name: Зеркало Яндекса для APT
+      become: yes
+      shell: |
+        sed -i 's/deb.debian.org/mirror.yandex.ru/g' /etc/apt/sources.list
+        sed -i 's/security.debian.org/mirror.yandex.ru/g' /etc/apt/sources.list
+
+    - name: Install podman dependencies
+      apt:
+        name:
+          - podman
+          - podman-compose
+          - slirp4netns
+          - fuse-overlayfs
+          - dbus-user-session
+          - pip
+        update_cache: yes
+
+    - name: ensure lingering is enabled for the user
+      command: "loginctl enable-linger {{ app_user }}"
+      args:
+        creates: "/var/lib/systemd/linger/{{ app_user }}"
+
+    - name: set subuid and subgid for rootless podman
+      lineinfile:
+        path: /etc/{{ item }}
+        line: "{{ app_user }}:100000:65536"
+        create: yes
+      loop:
+        - subuid
+        - subgid
+
+    - name: Allow user to bind to low ports
+      sysctl:
+        name: net.ipv4.ip_unprivileged_port_start
+        value: '80'
+        sysctl_set: yes
+        state: present
+
+    - name: Configure Podman registries
+      copy:
+        dest: /etc/containers/registries.conf
+        content: |
+          unqualified-search-registries=['docker.io', 'quay.io']
+          #become: yes
+
+
+    - name: Set timezone to Asia/Novosibirsk
+      become: yes
+      timezone:
+        name: Asia/Novosibirsk      

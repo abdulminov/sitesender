@@ -1,0 +1,166 @@
+---
+- name: Деплой проекта "чат-бот ВКонтакте" - Django + Bot + Postgres
+  hosts: workers
+  serial: 1 # выполняется последовательно, по одному (1) хосту за раз.
+  become: no
+
+  tasks:
+    - name: Force cleanup port 8000
+      become: yes
+      shell: "fuser -k 8000/tcp || true" # || true нужно, чтобы плейбук не упал, если порт уже свободен
+
+    - name: Остановить системные сервисы (чтобы позволили остановить контейнеры)
+      systemd:
+        name: "container-{{ item }}.service"
+        scope: user
+        state: stopped
+      loop: [app_bot_1, app_web_1, app_db_1]
+      ignore_errors: yes
+
+
+    - name: Down old project containers
+      shell: "podman-compose down"
+      args:
+        chdir: "/home/{{ app_user }}/app"
+      ignore_errors: yes
+
+    - name: Создание папки проекта
+      file:
+        path: "{{ app_dir }}"
+        state: directory
+        mode: "0755"
+
+    - name: Копирование всех файлов проекта (Dockerfile, compose, py)
+      copy:
+        src: ../app/
+        dest: "{{ app_dir }}/"
+
+
+    - name: Fix permissions for app directory
+      file:
+        path: "{{ app_dir }}"
+        owner: "{{ app_user }}"
+        group: "{{ app_user }}"
+        recurse: yes
+        mode: "0755"
+    
+
+    - name: Проверяем наличие образов в системе Podman
+      command: "podman image exists {{ item.name }}"
+      register: podman_images
+      ignore_errors: yes
+      failed_when: false
+      loop:
+        - { file: 'python-3.11-slim.tar', name: 'docker.io/library/python:3.11-slim' }
+        - { file: 'postgres-15.tar', name: 'docker.io/library/postgres:15' }
+
+
+    - name: Проверяем, лежат ли .tar архивы на сервере
+      stat:
+        path: "{{ app_dir }}/{{ item.item.file }}"
+      register: tar_stats
+      # Проверяем файл только для тех образов, которых НЕТ в Podman (rc != 0)
+      when: item.rc != 0
+      loop: "{{ podman_images.results }}"
+
+
+    - name: Копируем архивы с локальной машины (только если их нет на сервере)
+      copy:
+        src: "../{{ item.item.item.file }}"
+        dest: "{{ app_dir }}/"
+      # Копируем, если: 1) образа нет в Podman 2) файла нет на диске
+      when: 
+        - item.skipped is not defined
+        - not item.stat.exists
+      loop: "{{ tar_stats.results }}"
+
+
+    - name: Загружаем образы в Podman из файлов
+      command: "podman load -i {{ app_dir }}/{{ item.item.item.file }}"
+      become: yes
+      # Загружаем, если образа нет в Podman (и файл точно есть после шага 3)
+      when: item.skipped is not defined
+      loop: "{{ tar_stats.results }}"
+
+
+#   - name: Скачивание образов из интернета (если файлов нет)
+#      shell: "podman pull {{ item.item.name }}"
+#      when: not item.stat.exists
+#      async: 3600
+#      poll: 30
+#      loop: "{{ image_stats.results }}"
+#      become: yes
+
+
+
+ #    - name: Проверка наличия локального архива с образом Python
+ #      stat:
+ #        path: "/home/{{ app_user }}/app/python-3.11-slim.tar"
+ #      register: python_image_file
+# 
+ #    - name: Загрузка образа Python из локального файла (без интернета)
+ #      shell: "podman load -i /home/{{ app_user }}/app/python-3.11-slim.tar"
+ #      when: python_image_file.stat.exists
+ #      become: yes
+# 
+ #    - name: Предварительное скачивание образа (если файла нет)
+ #      shell: "podman pull docker.io/library/python:3.11-slim"
+ #      when: not python_image_file.stat.exists
+ #      async: 3600
+ #      poll: 30
+#      become: yes
+
+
+
+
+    - name: Сборка и запуск контейнеров
+      shell:
+        cmd: "podman-compose up -d --build"
+        chdir: "~/app"
+      async: 3600 #60 minutes
+      poll: 10 #status check every 10sec 
+      environment:
+        PIP_INDEX_URL: "https://mirror.yandex.ru/pypi/simple"
+        DB_PASSWORD: "{{ vault_db_password }}"
+        BOT_TOKEN: "{{ vault_vk_token }}"
+
+
+    - name: Ожидание запуска контейнеров
+      pause:
+        seconds: 60
+
+
+    - name: Применение миграций БД
+      shell: "podman exec app_web_1 python manage.py migrate"
+
+      run_once: true # это чтобы при запуске деплоя на нескольких нодах они все не ломанулись создавать миграции.
+
+
+    - name: Генерация systemd юнитов для контейнеров
+      shell: |
+        podman generate systemd --name {{ item }} --files --new
+        mv /home/{{ app_user }}/container-{{ item }}.service /home/{{ app_user }}/.config/systemd/user/
+        systemctl --user daemon-reload
+      args:
+        chdir: "/home/{{ app_user }}"
+      loop: [app_db_1, app_web_1, app_bot_1]
+
+
+#    - name: Принудительно вписываем сеть в файлы юнитов
+#      replace:
+#        path: "/home/{{ app_user }}/.config/systemd/user/container-{{ item }}.service"
+#        regexp: '--network-alias'
+#        replace: '--network app_default --network-alias'
+#      loop: [app_db_1, app_web_1, app_bot_1]
+
+
+    - name: Включение сервисов
+      systemd:
+        name: "{{ item }}"
+        scope: user
+        enabled: yes
+        state: started
+      loop:
+        - container-app_db_1.service
+        - container-app_web_1.service
+        - container-app_bot_1.service

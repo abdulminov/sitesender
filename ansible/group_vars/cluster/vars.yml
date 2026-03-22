@@ -1,0 +1,8 @@
+app_dir: "/home/vagrant/app"
+container_name: "vk_bot"
+image_name: "local/vk-bot:latest"
+vk_token: "{{ vault_vk_token }}"
+db_password: "{{ vault_db_password }}"
+project_name: sitesender
+bot_service_name: bot
+

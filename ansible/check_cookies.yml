@@ -1,0 +1,27 @@
+---
+- name: Проверка работоспособности кук внутри контейнера
+  hosts: workers
+  become: yes
+  become_user: "{{ app_user | default('vagrant') }}"
+
+  tasks:
+    - name: Тест с выводом всех подробностей
+      containers.podman.podman_container_exec:
+        name: app_bot_1
+        workdir: /code  # Исправлено: используем workdir вместо chdir
+        argv:
+          - yt-dlp
+          - --cookies
+          - cookies.txt
+          - --get-title
+          - "https://www.youtube.com/watch?v=mqiTGLl7SNA" # Даем ссылку на конкретное видео
+      register: test_yt
+      ignore_errors: yes
+
+    - name: Полный отчет
+      debug:
+        msg:
+          - "STDOUT: {{ test_yt.stdout | default('N/A') }}"
+          - "STDERR: {{ test_yt.stderr | default('N/A') }}"
+          - "RC: {{ test_yt.rc | default('Failed to run') }}"
+

@@ -1,0 +1,27 @@
+<a href="/logs/">Все</a> | 
+<a href="/logs/?status=500">Только ошибки</a> | 
+<a href="/logs/?status=200">Только успех</a>
+
+
+<h1>Мониторинг Бота</h1>
+<table border="1">
+    <tr>
+        <th>Дата</th>
+        <th>Пользователь</th>
+        <th>URL</th>
+        <th>Статус</th>
+        <th>Время (сек)</th>
+        <th>Ошибка</th>
+    </tr>
+    {% for log in logs %}
+    <tr>
+        <td>{{ log.created_at }}</td>
+        <td>{{ log.user_id }}</td>
+        <td>{{ log.url }}</td>
+        <td>{{ log.status_code }}</td>
+        <td>{{ log.execution_time }}</td>
+        <td>{{ log.error_message }}</td>
+    </tr>
+    {% endfor %}
+</table>
+
