@@ -1,16 +1,23 @@
 ---
-- name: Подготовка узлов - установка podman
+- name: Подготовка нодов - для app_user и запуска podman
   hosts: cluster
   become: yes
-  vars:
-    app_user: vagrant
+
 
   tasks:
-    - name: Зеркало Яндекса для APT
-      become: yes
-      shell: |
-        sed -i 's/deb.debian.org/mirror.yandex.ru/g' /etc/apt/sources.list
-        sed -i 's/security.debian.org/mirror.yandex.ru/g' /etc/apt/sources.list
+    - name: Зеркало Яндекса для APT (основной репозиторий)
+      replace:
+        path: /etc/apt/sources.list
+        regexp: 'deb.debian.org'
+        replace: 'mirror.yandex.ru'
+
+
+    - name: Зеркало Яндекса для APT (security)
+      replace:
+        path: /etc/apt/sources.list
+        regexp: 'security.debian.org'
+        replace: 'mirror.yandex.ru'
+
 
     - name: Install podman dependencies
       apt:
@@ -21,21 +28,38 @@
           - fuse-overlayfs
           - dbus-user-session
           - pip
+          - acl
         update_cache: yes
 
-    - name: ensure lingering is enabled for the user
-      command: "loginctl enable-linger {{ app_user }}"
+
+    - name: создаем прикладного пользователя appuser для запуска контейнеров
+      user:
+        name: appuser
+        #uid: 10001
+        shell: /usr/sbin/nologin
+        create_home: yes
+      register: appuser_info
+
+
+
+    - name: ensure lingering is enabled for appuser
+      command: "loginctl enable-linger appuser"
       args:
-        creates: "/var/lib/systemd/linger/{{ app_user }}"
+        creates: "/var/lib/systemd/linger/appuser"
+      environment:
+        # Добавляем это, чтобы команда не упала с ошибкой "Bus n/a"
+        XDG_RUNTIME_DIR: "/run/user/{{ appuser_info.uid }}"
+
 
     - name: set subuid and subgid for rootless podman
       lineinfile:
         path: /etc/{{ item }}
-        line: "{{ app_user }}:100000:65536"
+        line: "appuser:100000:65536"
         create: yes
       loop:
         - subuid
         - subgid
+
 
     - name: Allow user to bind to low ports
       sysctl:
@@ -44,12 +68,13 @@
         sysctl_set: yes
         state: present
 
-    - name: Configure Podman registries
-      copy:
-        dest: /etc/containers/registries.conf
-        content: |
-          unqualified-search-registries=['docker.io', 'quay.io']
-          #become: yes
+
+    - name: Аккуратная настройка репозиториев Podman
+      blockinfile:
+        path: /etc/containers/registries.conf
+        create: yes # Создать файл, если его вдруг нет
+        block: unqualified-search-registries = ["docker.io", "quay.io"]
+        marker: "# {mark} ANSIBLE MANAGED BLOCK - REGISTRIES #"
 
 
     - name: Set timezone to Asia/Novosibirsk

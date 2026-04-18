@@ -11,6 +11,7 @@ charset-normalizer==3.4.4
 choicelib==0.1.5
 colorama==0.4.6
 cryptography==46.0.3
+fastapi==0.135.1
 frozenlist==1.8.0
 greenlet==3.3.0
 idna==3.11
@@ -31,6 +32,7 @@ SecretStorage==3.5.0
 typing-inspection==0.4.2
 typing_extensions==4.15.0
 urllib3==2.6.2
+uvicorn==0.42.0
 vbml==1.1.post1
 vkbottle==4.6.2
 vkbottle-types==5.199.99.12

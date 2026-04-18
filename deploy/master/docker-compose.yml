@@ -1,0 +1,51 @@
+
+services:
+  db:
+    image: docker.io/library/postgres:15
+    container_name: master_db
+    restart: always
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init-db:/docker-entrypoint-initdb.d #монтируем папку под специальным именем. У официального образа Postgres есть магия: если положить .sql файл в папку /docker-entrypoint-initdb.d/ внутри контейнера, он выполнит загрузку этой базы только один раз — при самом первом создании базы.
+
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_DB=bot_db
+      - POSTGRES_USER=admin
+      - POSTGRES_PASSWORD={{ vault_db_password }}
+    networks:
+      - default
+
+  web:
+    #  image: localhost/web:v1
+    volumes:
+      - ./config/settings.py:/code/config/settings.py # МОНТИРУЕМ ПОВЕРХ остальное.
+    image: pycharmmiscproject-web:latest 
+    container_name: master_web
+    command: python manage.py runserver 0.0.0.0:8000
+    restart: always
+    ports:
+      - "8000:8000"
+    depends_on:
+      - db
+    environment:
+      - DB_NAME=bot_db
+      - DB_USER=admin
+      - DB_PASSWORD={{ vault_db_password }}
+      - DB_HOST=db
+      - DB_PORT=5432
+      - BOT_TOKEN={{ vault_vk_token }}
+      - ALLOWED_HOSTS={{ django_allowed_hosts }}
+    networks:
+      - default
+
+
+  nginx:
+    image: nginx
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - web

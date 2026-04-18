@@ -3,14 +3,19 @@ import django
 import time
 import re
 import asyncio
+import logging
 import subprocess
+from fastapi import FastAPI, Request
+from fastapi.responses import PlainTextResponse
+import uvicorn
 from pathlib import Path
 from dotenv import load_dotenv
 from vkbottle.bot import Bot, Message
+from vkbottle.callback import BotCallback
 from vkbottle import VideoUploader, DocMessagesUploader
 from yt_dlp import YoutubeDL
 from playwright.async_api import async_playwright
-
+from django.db import close_old_connections
 
 # 0 - Настройка Django: говорим скрипту, где лежат настройки проекта
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'config.settings')
@@ -40,30 +45,37 @@ DOWNLOAD_PATH='/tmp'
 #DOWNLOAD_PATH.mkdir(parents=True, exist_ok=True)
 #print(f"Файлы будут сохраняться в: {DOWNLOAD_PATH}")
 
-# 3. Проверяем тип файловой системы
-try:
-    # Используем findmnt для проверки конкретной точки
-    result = subprocess.run(
-        ['findmnt', '-n', '-o', 'FSTYPE', '-T', str(DOWNLOAD_PATH)],
-        capture_output=True,
-        text=True,
-        check=True
-    )
-    fs_type = result.stdout.strip()
-except Exception:
-    fs_type = "unknown"
+app = FastAPI()
 
-# 4. Логика уведомления
-if fs_type == "tmpfs":
-    print(f"🚀 Успех: Используется быстрая память (tmpfs) по пути {raw_path}")
-else:
-    print(f"⚠️ ВНИМАНИЕ: Папка {raw_path} находится на обычном диске ({fs_type}).")
-    print("Ресурс ПЗУ (eMMC/SD) под угрозой при частых загрузках!")
+
+@app.post("/callbackA")
+async def handle_webhook(request: Request):
+    # 1. Получаем JSON от VK
+    try:
+        data = await request.json()
+    except:
+        return PlainTextResponse("error")
+
+    # 2. Если это подтверждение — отдаем код СРАЗУ, никуда больше не заходя
+    if data.get("type") == "confirmation":
+        group_id = data.get("group_id")
+        # Бот сам спросит у VK: "Какой код мне сейчас вернуть?"
+        conf_code = await bot.api.groups.get_callback_confirmation_code(group_id=group_id)
+        return PlainTextResponse(conf_code.code)
+
+    # 3. Для всех остальных событий
+    if data.get("type"):
+        # Обрабатываем в фоне, чтобы не задерживать ответ VK
+        import asyncio
+        asyncio.create_task(bot.process_event(data))
+        return PlainTextResponse("ok")
+
+    return PlainTextResponse("ok")
 
 
 def get_ydl_options(height: int):
     return {
-        'format': "bestvideo[vcodec^=avc1]+bestaudio[ext=m4a]/best[ext=mp4]/best",
+        'format': 'bestvideo[vcodec^=avc1]+bestaudio[ext=m4a]/best[ext=mp4]/best',
         'outtmpl': f'{DOWNLOAD_PATH}/video_%(id)s.%(ext)s',
         'noplaylist': True,
 
@@ -101,6 +113,7 @@ async def main_handler(message: Message):
 
 
     execution_time = time.perf_counter() - start_time
+    close_old_connections()
     await save_log_to_db(
         user_id=str(message.from_id),
         url=full_url,
@@ -209,5 +222,5 @@ async def handle_pdf(message: Message, url: str):
         return (success, error_msg)
 
 if __name__ == "__main__":
-    print("Бот запущен...")
-    bot.run_forever()
+    # Запускаем веб-сервер на порту 5000
+    uvicorn.run(app, host="0.0.0.0", port=5000)

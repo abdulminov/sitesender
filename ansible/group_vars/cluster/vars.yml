@@ -1,8 +1,10 @@
-app_dir: "/home/vagrant/app"
+app_user: "appuser"
+app_dir: "/home/appuser/app"
 container_name: "vk_bot"
 image_name: "local/vk-bot:latest"
 vk_token: "{{ vault_vk_token }}"
 db_password: "{{ vault_db_password }}"
 project_name: sitesender
 bot_service_name: bot
-
+local_artifacts_dir: "{{ playbook_dir }}/../artifacts" #тут лежат образы *.tar
+django_allowed_hosts: "192.168.56.10,127.0.0.1,localhost,109.226.246.5,192.168.88.249,192.168.88.40"
