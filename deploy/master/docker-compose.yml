@@ -18,10 +18,9 @@ services:
       - default
 
   web:
-    #  image: localhost/web:v1
-    volumes:
-      - ./config/settings.py:/code/config/settings.py # МОНТИРУЕМ ПОВЕРХ остальное.
-    image: pycharmmiscproject-web:latest 
+    #volumes:
+      #      - ./config/settings.py:/code/config/settings.py # МОНТИРУЕМ ПОВЕРХ остальное.
+    image: bot_app:latest 
     container_name: master_web
     command: python manage.py runserver 0.0.0.0:8000
     restart: always

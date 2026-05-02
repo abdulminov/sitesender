@@ -3,8 +3,8 @@ name: worker_app_bot
 services:
   bot:
     container_name: worker_app_bot
-    build: .
     command: python SiteSender.py
+    image: bot_app:latest
     restart: always
     ports:
       - "5000:5000"
@@ -15,11 +15,11 @@ services:
     environment:
       - DB_NAME=bot_db
       - DB_USER=admin
-      - DB_PASSWORD=${DB_PASSWORD}
+      - DB_PASSWORD={{ vault_db_password }}
       - DB_HOST={{ groups['masters'] | map('extract', hostvars, 'ansible_host') | first }}
       - DB_PORT=5432
-      - BOT_TOKEN=${BOT_TOKEN}
-      - MY_NODE_NAME=${MY_NODE_NAME}
+      - BOT_TOKEN={{ vault_vk_token }}
+      - MY_NODE_NAME={{ inventory_hostname }}
       - YTDLP_JS_RUNTIME=node
 #   volumes:      #убрать после отработки
 #      - .:/code

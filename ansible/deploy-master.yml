@@ -1,16 +1,17 @@
+---
 - name: Деплой базы и админки
   hosts: masters
-  #become: yes
   tasks:
+
 
 
     - name: Подготовка временной папки для Ansible под appuser
       file:
-        path: "/home/appuser/.ansible/tmp"
+        path: "/home/{{ app_user }}/.ansible/tmp"
         state: directory
-        owner: appuser
-        group: appuser
-        mode: '0700' # Ansible сам поменяет на нужные через ACL
+        owner: "{{ app_user }}"
+        group: "{{ app_user }}"
+        mode: '0755' # Ansible сам поменяет на нужные через ACL
       become: yes
 
 
@@ -60,23 +61,23 @@
         register: compose_file
 
 
-      - name: Копирование файлов проекта (Dockerfile, compose, py)
-        copy:
-          src: "{{ playbook_dir }}/../app/{{ item }}"
-          dest: "{{ app_dir }}/"
-        loop:
-          - requirements.txt
-          - Dockerfile
-          - manage.py
-          - logs
-          - config
+#      - name: Копирование файлов проекта (Dockerfile, compose, py)
+#        copy:
+#          src: "{{ playbook_dir }}/../app/{{ item }}"
+#          dest: "{{ app_dir }}/"
+#        loop:
+#          - requirements.txt
+#          - Dockerfile
+#          - manage.py
+#          - logs
+#          - config
 
 
       - name: генерация и копирование nginx.conf
         template:
           src: "{{ playbook_dir }}/../deploy/master/nginx.conf.j2"
           dest: "{{ app_dir }}/nginx.conf"
-        register: nginx_config
+            register: nginx_config
       
           
       - name: Создаем папку для инициализации БД
@@ -97,7 +98,7 @@
           dest: "{{ app_dir }}/"
           mode: '0644'
         loop:
-          - web_image.tar
+          - bot_app.tar
           - nginx.tar
 
       - name: Проверяем, загружены ли образы
@@ -106,7 +107,7 @@
         ignore_errors: true
         changed_when: false
         loop:
-          - web_image
+          - bot_app
           - nginx
 
       - name: Загружаем образы (только если их нет)

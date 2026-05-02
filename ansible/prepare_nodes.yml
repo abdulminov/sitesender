@@ -80,4 +80,12 @@
     - name: Set timezone to Asia/Novosibirsk
       become: yes
       timezone:
-        name: Asia/Novosibirsk      
+        name: Asia/Novosibirsk     
+
+
+    - name: Фиксируем правильный шлюз в cron для автозагрузки
+      become: yes
+      cron:
+        name: "Fix default gateway for VK"
+        special_time: reboot
+        job: "/usr/sbin/ip route replace default via 192.168.88.1 dev eth1"

@@ -25,12 +25,13 @@ RUN playwright install chromium
 RUN groupadd -g 10001 appgroup && \
     useradd -r -u 10001 -g appgroup -s /sbin/nologin appuser 
 
-COPY --chown=appuser:appgroup config/ /code/config/
-COPY --chown=appuser:appgroup logs/ /code/logs/
-COPY --chown=appuser:appgroup SiteSender.py manage.py requirements.txt cookies.txt /code/
+COPY --chown=appuser:appgroup requirements.txt /code/
 RUN pip install --no-cache-dir -r requirements.txt && \
     chown -R appuser:appgroup /code $PLAYWRIGHT_BROWSERS_PATH
 
+COPY --chown=appuser:appgroup config/ /code/config/
+COPY --chown=appuser:appgroup logs/ /code/logs/
+COPY --chown=appuser:appgroup SiteSender.py manage.py cookies.txt /code/
 #раскомментировать после отработки!
 USER 10001
 
