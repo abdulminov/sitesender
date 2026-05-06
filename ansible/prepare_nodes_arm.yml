@@ -1,35 +1,42 @@
 ---
 - name: Подготовка нодов - для app_user и запуска podman
-  hosts: cluster
+  hosts: workers_arm
   become: yes
 
 
   tasks:
-    - name: Зеркало Яндекса для APT (основной репозиторий)
-      replace:
-        path: /etc/apt/sources.list
-        regexp: 'deb.debian.org'
-        replace: 'mirror.yandex.ru'
 
 
-#    - name: Зеркало Яндекса для APT (security)
-#      replace:
-#        path: /etc/apt/sources.list
-#        regexp: 'security.debian.org'
-#        replace: 'mirror.yandex.ru'
+    - name: Установка правильных репозиториев (Debian Bookworm ARM)
+      become: yes
+      copy:
+        content: |
+          deb http://mirror.yandex.ru/debian/ bookworm main contrib non-free non-free-firmware
+          deb http://mirror.yandex.ru/debian/ bookworm-updates main contrib non-free non-free-firmware
+          deb http://mirror.yandex.ru/debian-security/ bookworm-security main contrib non-free non-free-firmware
+        dest: /etc/apt/sources.list
 
 
     - name: Install podman dependencies
       apt:
         name:
+
           - podman
-          - podman-compose
+            #          - python3-podman-compose  # Официальный системный пакет
           - slirp4netns
           - fuse-overlayfs
           - dbus-user-session
-          - pip
+          - python3-pip
+          - pipx
           - acl
         update_cache: yes
+
+
+    - name: Install podman-compose via pipx
+      community.general.pipx:
+        name: podman-compose
+        state: install
+        install_deps: yes
 
 
     - name: создаем прикладного пользователя appuser для запуска контейнеров
@@ -43,7 +50,7 @@
 
 
     - name: ensure lingering is enabled for appuser
-      command: "loginctl enable-linger {{ app_user }}"
+      command: "loginctl enable-linger {{ app_user }}" 
       args:
         creates: "/var/lib/systemd/linger/{{ app_user }}"
       environment:
@@ -75,16 +82,6 @@
         create: yes # Создать файл, если его вдруг нет
         block: unqualified-search-registries = ["docker.io", "quay.io"]
         marker: "# {mark} ANSIBLE MANAGED BLOCK - REGISTRIES #"
-
-
-    - name: Подготовка временной папки для Ansible под appuser
-      file:
-        path: "/home/{{ app_user }}/.ansible/tmp"
-        state: directory
-        owner: "{{ app_user }}"
-        group: "{{ app_user }}"
-        mode: '0755' # Ansible сам поменяет на нужные через ACL
-      become: yes
 
 
     - name: Set timezone to Asia/Novosibirsk

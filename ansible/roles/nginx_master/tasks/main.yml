@@ -1,0 +1,6 @@
+---
+- name: генерация и копирование nginx.conf
+  template:
+    src: nginx.conf.j2
+    dest: "{{ app_dir }}/nginx.conf"
+  notify: reload nginx config # вызов хендлера с названием "restart nginx service". Он будет вызван если эта таска вернет "changed", то есть, когда файл изменился.

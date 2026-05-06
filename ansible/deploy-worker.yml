@@ -90,7 +90,8 @@
 
 
       - name: Загружаем образы (только если их нет)
-        command: "podman load -i {{ app_dir }}/{{ item.item }}.tar"
+        #        command: "podman load -i {{ app_dir }}/{{ item.item }}.tar"
+        command: "podman load -i {{ app_dir }}/{{ item.item }}_{{ 'arm' if ansible_architecture == 'aarch64' else 'amd64' }}.tar"
         when: item.rc != 0
         loop: "{{ image_check.results }}"
         register: load_result

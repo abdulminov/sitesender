@@ -1,0 +1,89 @@
+- name: получаем информацию о пользователе appuser
+  ansible.builtin.getent:
+    database: passwd
+    key: "{{ app_user }}"
+
+- name: Блок задач от имени пользователя appuser
+  become: yes 
+  become_user: "{{ app_user }}"
+  environment:
+    XDG_RUNTIME_DIR: "/run/user/{{ getent_passwd[app_user].1 }}"
+  block:
+
+    - name: Создаем необходимые директории
+      ansible.builin.file:
+        path: "{{ item }}"
+        state: directory
+        mode: "0755"
+      loop:
+        - "{{ app_dir }}" # папка для проекта
+        - "/home/{{ app_user }}/.config/systemd/user" # папка для юнита systemd
+
+
+    - name: копирование юнит-файла и compose
+      ansible.builtin.template:
+        src: "{{ item.src }}"
+        dest: "{{ item.dest }}"
+      loop:
+        - { src: "app-stack.service.j2", dest: "/home/{{ app_user }}/.config/systemd/user/app-stack.service" }
+        - { src: "{{ node_type }}-compose.yml.j2", dest: "{{ app_dir }}/" }
+      register: config_files
+
+# НАСТРОЙКА БД (для мастера)
+    - name: настройка БД для мастера
+      when: node_type== 'masters'    
+      block:
+      - name: Создаем папку для инициализации БД
+        ansible.builtin.file:
+          path: "{{ app_dir }}/init-db"
+          state: directory
+      - name: Копируем бэкап базы
+        ansible.builtin.copy:
+          src: "{{ local_artifacts_dir }}/backup.sql"
+          dest: "{{ app_dir }}/init-db/backup.sql"
+
+# Копируем образы и сразу загружаем, если изменились.
+    - name: Копируем образы
+      ansible.builtin.copy:
+        src: "{{ local_artifacts_dir }}/{{ item }}" 
+        dest: "{{ app_dir }}/"
+      mode: '0644'
+      loop: "{{ images_to_copy }}" # переменные для воркера и мастера разные, в разных файлах в group_vars/
+      register: transfer_images
+
+    - name: Загружаем образы
+      ansible.builtin.command: "podman load -i {{ app_dir }}/{{ item.item }}.tar"
+      when: item.changed
+      loop: "{{ transfer_images.results }}"
+
+# ЗАПУСК
+    - name: перезагрузка конфигов systemd и запуск проекта
+      ansible.builtin.systemd:
+        name: app-stack
+        scope: user
+        state: restarted
+        enabled: yes
+        daemon_reload: yes
+      when: transfer_images.changed or config_files.changed
+
+
+    - name: Ожидание полной готовности стека
+      shell: "systemctl --user is-active app-stack"
+      register: app_status
+      # Пытаемся 60 раз (по 10 секунд = 10 минут суммарно)
+      until: app_status.stdout == "active"
+      retries: 60
+      delay: 10
+      changed_when: false
+      #become_user: "{{ app_user }}"
+      #environment:
+        #XDG_RUNTIME_DIR: "/run/user/{{ getent_passwd[app_user].1 }}"
+
+# МИГРАЦИИ (только для мастера)
+    - name: Применение миграций БД
+      ansible.builtin.shell: "podman exec master_web python manage.py migrate"
+      when: {{ node_type }} == 'master'
+      retries: 30 
+      delay: 10
+      run_once: true # это чтобы при запуске деплоя на нескольких нодах они все не ломанулись создавать миграции.
+

@@ -1,6 +1,6 @@
 ---
 - name: Деплой проекта "чат-бот ВКонтакте" - Django + Bot + Postgres
-  hosts: workers
+  hosts: workers_arm
   serial: 1 # выполняется последовательно, по одному (1) хосту за раз.
   tasks:
 
@@ -19,7 +19,6 @@
       getent:
         database: passwd
         key: "{{ app_user }}"
-
 
 
     - name: задания, выполняемые от имени прикладного пользователя appuser
@@ -75,7 +74,7 @@
           dest: "{{ app_dir }}/"
           mode: '0644'
         loop:
-          - bot_app.tar
+          - bot_app_arm.tar
           - python-3.11-slim.tar
 
 
@@ -86,11 +85,11 @@
         changed_when: false
         loop:
           - bot_app
-          - python-3.11-slim
+#          - python-3.11-slim
 
 
-      - name: Загружаем образы (только если их нет)
-        command: "podman load -i {{ app_dir }}/{{ item.item }}.tar"
+      - name: Загружаем образы с учётом архитектуры (только если их нет)
+        command: "podman load -i {{ app_dir }}/{{ item.item }}_{{ 'arm' if ansible_architecture == 'aarch64' else 'amd64' }}.tar"
         when: item.rc != 0
         loop: "{{ image_check.results }}"
         register: load_result
