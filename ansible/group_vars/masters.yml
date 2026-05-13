@@ -1,2 +1,2 @@
 node_type: "masters"
-images_to_copy: ["bot_app_x86.tar", "nginx.tar"]
+images_to_copy: ["bot_app_x86.tar.gz", "nginx.tar.gz"]

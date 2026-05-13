@@ -42,6 +42,7 @@ services:
 
   nginx:
     image: nginx
+    container_name: app_nginx
     ports:
       - "80:80"
     volumes:

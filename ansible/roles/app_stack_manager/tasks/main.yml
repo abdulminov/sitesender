@@ -11,7 +11,7 @@
   block:
 
     - name: Создаем необходимые директории
-      ansible.builin.file:
+      ansible.builtin.file:
         path: "{{ item }}"
         state: directory
         mode: "0755"
@@ -26,7 +26,7 @@
         dest: "{{ item.dest }}"
       loop:
         - { src: "app-stack.service.j2", dest: "/home/{{ app_user }}/.config/systemd/user/app-stack.service" }
-        - { src: "{{ node_type }}-compose.yml.j2", dest: "{{ app_dir }}/" }
+        - { src: "{{ node_type }}-compose.yml", dest: "{{ app_dir }}/docker-compose.yml" }
       register: config_files
 
 # НАСТРОЙКА БД (для мастера)
@@ -43,16 +43,17 @@
           dest: "{{ app_dir }}/init-db/backup.sql"
 
 # Копируем образы и сразу загружаем, если изменились.
-    - name: Копируем образы
+    - name: Копируем сжатые tar.gz-образы
       ansible.builtin.copy:
         src: "{{ local_artifacts_dir }}/{{ item }}" 
         dest: "{{ app_dir }}/"
-      mode: '0644'
+        mode: '0644'
       loop: "{{ images_to_copy }}" # переменные для воркера и мастера разные, в разных файлах в group_vars/
       register: transfer_images
 
-    - name: Загружаем образы
-      ansible.builtin.command: "podman load -i {{ app_dir }}/{{ item.item }}.tar"
+
+    - name: Распаковка и загрузка сжатых образов
+      ansible.builtin.shell: "gzip -c {{ app_dir }}/{{ item.item }} | podman load"
       when: item.changed
       loop: "{{ transfer_images.results }}"
 
@@ -82,7 +83,7 @@
 # МИГРАЦИИ (только для мастера)
     - name: Применение миграций БД
       ansible.builtin.shell: "podman exec master_web python manage.py migrate"
-      when: {{ node_type }} == 'master'
+      when: node_type == 'master'
       retries: 30 
       delay: 10
       run_once: true # это чтобы при запуске деплоя на нескольких нодах они все не ломанулись создавать миграции.

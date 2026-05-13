@@ -9,12 +9,8 @@ RUN sed -i 's/deb.debian.org/mirror.yandex.ru/g' /etc/apt/sources.list.d/debian.
     && apt-get update && apt-get install -y \
     libpq-dev \
     gcc \
-#    ffmpeg \
-#    nodejs \
     curl \
-#    && pip install --no-cache-dir playwright \
-#    && playwright install-deps chromium \
-#    && rm -rf /var/lib/apt/lists/*
+    && rm -rf /var/lib/apt/lists/*
 
 
 COPY requirements.txt .
