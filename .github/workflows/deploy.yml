@@ -36,8 +36,11 @@ jobs:
         with:
           context: ./app/
           push: true
-          tags: ghcr.io/${{ github.repository }}/bot_app:latest
+          tags: ghcr.io/${{ github.repository }}:latest
 
+          # ВКЛЮЧАЕМ ЛОКАЛЬНЫЙ КЭШ ДЛЯ РАННЕРА:
+          cache-from: type=local,src=/tmp/.buildx-cache
+          cache-to: type=local,dest=/tmp/.buildx-cache-new,mode=max
 #      - name: Run Ansible Playbook
 #        env: 
 #          ANSIBLE_HOST_KEY_CHECKING: "False"
