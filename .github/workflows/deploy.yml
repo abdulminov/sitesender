@@ -1,0 +1,46 @@
+name: CI/CD pipeline
+
+on: 
+  push:
+    branches: ["**"] #будет срабатывать на каждый пуш в любую ветку
+
+jobs:
+  test-and-lint:
+    #проверка кода
+    runs-on: self-hosted
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Run Code Linting
+        run: echo "Тут мы запускаем flake8 или black"
+
+      - name: Run Django Tests
+        run: echo "Тут мы прогоняем python manage.py test"
+
+
+  build-and-deploy:
+    needs: test-and-lint #требуется с положительным результатом завершить test-and-lint
+    if: github.ref == 'refs/heads/main' # эта часть будет работать только при пуше в ветку main
+    runs-on: self-hosted
+    steps:
+      - name: Log in to Github Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and Push to GHCR
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: ghcr.io/${{ github.repository }}/bot_app:latest
+
+#      - name: Run Ansible Playbook
+#        env: 
+#          ANSIBLE_HOST_KEY_CHECKING: "False"
+#        run: |
+#          ansible-playbook -i ansible/inventory.ini ansible/deploy.yml
+

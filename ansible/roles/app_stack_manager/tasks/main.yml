@@ -83,7 +83,7 @@
 # МИГРАЦИИ (только для мастера)
     - name: Применение миграций БД
       ansible.builtin.shell: "podman exec master_web python manage.py migrate"
-      when: node_type == 'master'
+      when: node_type == 'masters'
       retries: 30 
       delay: 10
       run_once: true # это чтобы при запуске деплоя на нескольких нодах они все не ломанулись создавать миграции.

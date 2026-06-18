@@ -28,18 +28,18 @@ WORKDIR /code
 
 # устанавливаем только системные зависимости для работы (Runtime)
 RUN sed -i 's/deb.debian.org/mirror.yandex.ru/g' /etc/apt/sources.list.d/debian.sources \
-    && apt-get update && apt-get install -y --no-install-recommends\
+    && apt-get update && apt-get install -y \
     libpq5 \
     ffmpeg \
-    #nodejs \
-    #&& pip install --no-cache-dir playwright \
-    #&& playwright install-deps chromium \
+    nodejs \
+    && pip install --no-cache-dir playwright \
+    && playwright install-deps chromium \
     && rm -rf /var/lib/apt/lists/*
 
-#ENV PLAYWRIGHT_BROWSERS_PATH=/opt/pw-browser
-#RUN mkdir -p $PLAYWRIGHT_BROWSERS_PATH
+ENV PLAYWRIGHT_BROWSERS_PATH=/opt/pw-browser
+RUN mkdir -p $PLAYWRIGHT_BROWSERS_PATH
 
-#RUN playwright install chromium
+RUN playwright install chromium
 
 
 RUN groupadd -g 10001 appgroup && \
@@ -48,5 +48,5 @@ RUN groupadd -g 10001 appgroup && \
 COPY --chown=appuser:appgroup config/ /code/config/
 COPY --chown=appuser:appgroup logs/ /code/logs/
 COPY --chown=appuser:appgroup SiteSender.py manage.py cookies.txt /code/
-#RUN chown -R appuser:appgroup /code $PLAYWRIGHT_BROWSERS_PATH
+RUN chown -R appuser:appgroup /code $PLAYWRIGHT_BROWSERS_PATH
 USER 10001

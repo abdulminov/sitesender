@@ -5,6 +5,8 @@ events {
 
 http {
     # Объявляем зону лимитов (чтобы не упало)
+    server_tokens off; # Скрывает версию на страницах ошибок и в заголовках
+    
     limit_req_zone $binary_remote_addr zone=mylimit:10m rate=10r/s;
 
     upstream bot_backend {
@@ -22,12 +24,20 @@ http {
         }
 
         location /logs/ {
-            proxy_pass http://web:8000;
+            allow 10.0.0.0/24;
+            allow 192.168.88.0/24;
+            allow 127.0.0.1;
+            deny all;
+	    proxy_pass http://web:8000;
             proxy_set_header Host $host;
             proxy_set_header X-Real-IP $remote_addr;
         }
 
         location /admin/ {
+            allow 10.0.0.0/24;
+            allow 192.168.88.0/24;
+            allow 127.0.0.1;
+            deny all;
             proxy_pass http://web:8000;
             proxy_set_header Host $host;
             proxy_set_header X-Real-IP $remote_addr;

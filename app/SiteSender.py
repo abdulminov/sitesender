@@ -3,18 +3,13 @@ import django
 import time
 import re
 import asyncio
-import logging
-import subprocess
 from fastapi import FastAPI, Request
 from fastapi.responses import PlainTextResponse
 import uvicorn
-from pathlib import Path
 from dotenv import load_dotenv
 from vkbottle.bot import Bot, Message
-from vkbottle.callback import BotCallback
-from vkbottle import VideoUploader, DocMessagesUploader
+from vkbottle import DocMessagesUploader
 from yt_dlp import YoutubeDL
-from playwright.async_api import async_playwright
 from django.db import close_old_connections
 
 # 0 - Настройка Django: говорим скрипту, где лежат настройки проекта
@@ -105,10 +100,12 @@ async def main_handler(message: Message):
     is_youtube_video = (("youtube.com" in full_url) or ("youtu.be/" in full_url)) and not ("search" in full_url)
 
     if is_youtube_video:
-        success, error_msg = await handle_video(message, full_url)
+        asyncio.create_task(handle_video(message, full_url))
+        success, error_msg = (True, 'Video processing started in background')
     else:
+        success, error_msg = (False, 'Нужна ссылка на Ютуб')
         # Сюда попадут обычные сайты и страницы поиска YouTube (напр. youtube.com?...)
-        success, error_msg = await handle_pdf(message, full_url)
+        #success, error_msg = await handle_pdf(message, full_url)
     status = 200 if success else 500
 
 
@@ -168,7 +165,8 @@ async def handle_video(message: Message, url: str, retry: bool = False):
             if filename and os.path.exists(filename):
                 os.remove(filename)
             # Пробуем еще раз с качеством 480p
-            return await handle_video(message, url, retry=True)
+            success, error_msg = handle_video(message, url, retry=True)
+            return await success, error_msg
         else:
             await message.answer(f"SONY ❌ Не удалось отправить даже в 480p: {str(e)}")
 
@@ -178,7 +176,7 @@ async def handle_video(message: Message, url: str, retry: bool = False):
 
     return success, error_msg
 
-async def handle_pdf(message: Message, url: str):
+'''async def handle_pdf(message: Message, url: str):
     await message.answer(f"SONY 📄 Делаю PDF страницы...")
     file_path = f"{DOWNLOAD_PATH}/page_{message.from_id}.pdf"
 
@@ -220,6 +218,7 @@ async def handle_pdf(message: Message, url: str):
         if os.path.exists(file_path):
             os.remove(file_path)
         return (success, error_msg)
+'''
 
 if __name__ == "__main__":
     # Запускаем веб-сервер на порту 5000

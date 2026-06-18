@@ -19,7 +19,6 @@ jeepney==0.9.0
 msgspec==0.19.0
 multidict==6.7.0
 mutagen==1.47.0
-playwright==1.57.0
 propcache==0.4.1
 pycparser==2.23
 pycryptodomex==3.23.0
