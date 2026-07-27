@@ -3,6 +3,8 @@ name: CI/CD pipeline
 on: 
   push:
     branches: ["**"] #будет срабатывать на каждый пуш в любую ветку
+    paths-ignore:
+      - "README.md"
 
 jobs:
   test-and-lint:
@@ -36,7 +38,9 @@ jobs:
         with:
           context: ./app/
           push: true
-          tags: ghcr.io/${{ github.repository }}:latest
+          tags: |
+            ghcr.io/${{ github.repository }}:latest
+            ghcr.io/${{ github.repository }}:0.${{ github.run_number }}
 
           # ВКЛЮЧАЕМ ЛОКАЛЬНЫЙ КЭШ ДЛЯ РАННЕРА:
           cache-from: type=local,src=/tmp/.buildx-cache

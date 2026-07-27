@@ -1,5 +1,5 @@
 ---
-- name: Подготовка нодов - для app_user и запуска podman
+- name: Подготовка нодов - для deployer и запуска podman
   hosts: cluster
   become: yes
 
@@ -32,29 +32,33 @@
         update_cache: yes
 
 
-    - name: создаем прикладного пользователя appuser для запуска контейнеров
+    - name: создаем прикладного пользователя deployer для деплоя и запуска контейнеров
       user:
-        name: "{{ app_user }}"
+        name: "{{ deployer }}"
         #uid: 10001
-        shell: /usr/sbin/nologin
+        shell: /bin/bash
         create_home: yes
-      register: appuser_info
+      register: deployer_info
 
 
 
-    - name: ensure lingering is enabled for appuser
-      command: "loginctl enable-linger {{ app_user }}"
-      args:
-        creates: "/var/lib/systemd/linger/{{ app_user }}"
-      environment:
+    - name: ensure lingering is enabled for deployer
+      #command: "loginctl enable-linger {{ deployer }}"
+      command: "loginctl enable-linger"
+      become_user: "{{ deployer }}"
+      become_flags: --login #заставляет систему выполнить полноценный login-скрипт чтобы не писать XDG_RUNTIME_DIR: "/run/user/{{ deployer_info.uid }}"
+
+        #args:
+        #creates: "/var/lib/systemd/linger/{{ deployer }}"
+        #environment:
         # Добавляем это, чтобы команда не упала с ошибкой "Bus n/a"
-        XDG_RUNTIME_DIR: "/run/user/{{ appuser_info.uid }}"
+        #XDG_RUNTIME_DIR: "/run/user/{{ deployer_info.uid }}"
 
 
     - name: set subuid and subgid for rootless podman
       lineinfile:
         path: /etc/{{ item }}
-        line: "{{ app_user }}:100000:65536"
+        line: "{{ deployer }}:100000:65536"
         create: yes
       loop:
         - subuid
@@ -79,10 +83,10 @@
 
     - name: Подготовка временной папки для Ansible под appuser
       file:
-        path: "/home/{{ app_user }}/.ansible/tmp"
+        path: "/home/{{ deployer }}/.ansible/tmp"
         state: directory
-        owner: "{{ app_user }}"
-        group: "{{ app_user }}"
+        owner: "{{ deployer }}"
+        group: "{{ deployer }}"
         mode: '0755' # Ansible сам поменяет на нужные через ACL
       become: yes
 
@@ -93,9 +97,9 @@
         name: Asia/Novosibirsk     
 
 
-    - name: Фиксируем правильный шлюз в cron для автозагрузки
-      become: yes
-      cron:
-        name: "Fix default gateway for VK"
-        special_time: reboot
-        job: "/usr/sbin/ip route replace default via 192.168.88.1 dev eth1"
+          #- name: Фиксируем правильный шлюз в cron для автозагрузки
+          #become: yes
+          #cron:
+          #name: "Fix default gateway for VK"
+          #special_time: reboot
+          #job: "/usr/sbin/ip route replace default via 192.168.88.1 dev eth1"
