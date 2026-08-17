@@ -1,7 +1,5 @@
 ---
 - name: reload nginx config
   become: yes
-  become_user: "{{ app_user }}"
-  environment:
-    XDG_RUNTIME_DIR: "/run/user/{{ getent_passwd[app_user].1 }}"
+  become_user: "{{ deployer }}"
   command: "podman exec nginx nginx -s reload"
