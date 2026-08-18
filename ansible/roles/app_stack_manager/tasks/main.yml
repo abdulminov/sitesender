@@ -1,85 +1,71 @@
-- name: Блок задач от имени пользователя appuser
-  become: yes 
-  become_user: "{{ app_user }}"
-  environment:
-    XDG_RUNTIME_DIR: "/run/user/{{ getent_passwd[app_user].1 }}"
-  block:
+---
 
-    - name: Создаем необходимые директории
-      ansible.builtin.file:
-        path: "{{ item }}"
-        state: directory
-        mode: "0755"
-      loop:
-        - "{{ app_dir }}" # папка для проекта
-        - "/home/{{ app_user }}/.config/systemd/user" # папка для юнита systemd
+- name: Создаем необходимые директории
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    mode: "0755"
+  loop:
+    - "{{ app_dir }}" # папка для проекта
+    - "/home/{{ deployer }}/.config/systemd/user" # папка для юнита systemd
+
+  
+- name: Регистрируемся в GHCR (репозиторий контейнеров от GitHub)
+  containers.podman.podman_login:
+    registry: ghcr.io
+    username: "{{ ghcr_user }}"
+    password: "{{ ghcr_token }}"
 
 
-    - name: копирование юнит-файла и compose
-      ansible.builtin.template:
-        src: "{{ item.src }}"
-        dest: "{{ item.dest }}"
-      loop:
-        - { src: "app-stack.service.j2", dest: "/home/{{ app_user }}/.config/systemd/user/app-stack.service" }
-        - { src: "{{ node_type }}-compose.yml", dest: "{{ app_dir }}/docker-compose.yml" }
-      register: config_files
+- name: копирование юнит-файла и Docker-compose
+  ansible.builtin.template:
+    src: "{{ item.src }}"
+    dest: "{{ item.dest }}"
+  loop:
+    - { src: "app-stack.service.j2", dest: "/home/{{ deployer }}/.config/systemd/user/app-stack.service" }
+    - { src: "{{ node_type }}-compose.yml", dest: "{{ app_dir }}/docker-compose.yml" }
+    # node_type = masters/workers, переменная в group_vars
+  register: config_files
 
 # НАСТРОЙКА БД (для мастера)
-    - name: настройка БД для мастера
-      when: node_type== 'masters'    
-      block:
-      - name: Создаем папку для инициализации БД
-        ansible.builtin.file:
-          path: "{{ app_dir }}/init-db"
-          state: directory
-      - name: Копируем бэкап базы
-        ansible.builtin.copy:
-          src: "{{ local_artifacts_dir }}/backup.sql"
-          dest: "{{ app_dir }}/init-db/backup.sql"
+- name: настройка БД для мастера
+  when: node_type== 'masters'    
+  block:
+  - name: Создаем папку для инициализации БД
+    ansible.builtin.file:
+      path: "{{ app_dir }}/init-db"
+      state: directory
 
-# Копируем образы и сразу загружаем, если изменились.
-    - name: Копируем сжатые tar.gz-образы
-      ansible.builtin.copy:
-        src: "{{ local_artifacts_dir }}/{{ item }}" 
-        dest: "{{ app_dir }}/"
-        mode: '0644'
-      loop: "{{ images_to_copy }}" # переменные для воркера и мастера разные, в разных файлах в group_vars/
-      register: transfer_images
-
-
-    - name: Распаковка и загрузка сжатых образов
-      ansible.builtin.shell: "gzip -c {{ app_dir }}/{{ item.item }} | podman load"
-      when: item.changed
-      loop: "{{ transfer_images.results }}"
+  - name: Копируем бэкап базы
+    ansible.builtin.copy:
+      src: "{{ local_artifacts_dir }}/backup.sql"
+      dest: "{{ app_dir }}/init-db/backup.sql"
 
 # ЗАПУСК
-    - name: перезагрузка конфигов systemd и запуск проекта
-      ansible.builtin.systemd:
-        name: app-stack
-        scope: user
-        state: restarted
-        enabled: yes
-        daemon_reload: yes
-      when: transfer_images.changed or config_files.changed
+- name: перезагрузка конфигов systemd и запуск проекта
+  ansible.builtin.systemd:
+    name: app-stack
+    scope: user
+    state: restarted
+    enabled: yes
+    daemon_reload: yes
+  when: config_files.changed
 
 
-    - name: Ожидание полной готовности стека
-      shell: "systemctl --user is-active app-stack"
-      register: app_status
-      # Пытаемся 60 раз (по 10 секунд = 10 минут суммарно)
-      until: app_status.stdout == "active"
-      retries: 60
-      delay: 10
-      changed_when: false
-      #become_user: "{{ app_user }}"
-      #environment:
-        #XDG_RUNTIME_DIR: "/run/user/{{ getent_passwd[app_user].1 }}"
+- name: Ожидание полной готовности стека
+  shell: "systemctl --user is-active app-stack"
+  register: app_status
+  # Пытаемся 60 раз (по 10 секунд = 10 минут суммарно)
+  until: app_status.stdout == "active"
+  retries: 60
+  delay: 10
+  changed_when: false
 
 # МИГРАЦИИ (только для мастера)
-    - name: Применение миграций БД
-      ansible.builtin.shell: "podman exec master_web python manage.py migrate"
-      when: node_type == 'masters'
-      retries: 30 
-      delay: 10
-      run_once: true # это чтобы при запуске деплоя на нескольких нодах они все не ломанулись создавать миграции.
+- name: Применение миграций БД
+  ansible.builtin.shell: "podman exec master_web python manage.py migrate"
+  when: node_type == 'masters'
+  retries: 30 
+  delay: 10
+  run_once: true # это чтобы при запуске деплоя на нескольких нодах они все не ломанулись создавать миграции.
 

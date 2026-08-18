@@ -45,9 +45,25 @@ jobs:
           # ВКЛЮЧАЕМ ЛОКАЛЬНЫЙ КЭШ ДЛЯ РАННЕРА:
           cache-from: type=local,src=/tmp/.buildx-cache
           cache-to: type=local,dest=/tmp/.buildx-cache-new,mode=max
+
+      - name: Настраиваем SSH-ключ для доступа к серверу
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.SSH_DEPLOYER_PRIVATE_KEY }} # Ключ деплоера из секретов
+
+
+
+
 #      - name: Run Ansible Playbook
 #        env: 
-#          ANSIBLE_HOST_KEY_CHECKING: "False"
+#          ANSIBLE_HOST_KEY_CHECKING: "False" # чтобы не выскакивал вопрос "это новое подключение, доверять ли ему"
 #        run: |
-#          ansible-playbook -i ansible/inventory.ini ansible/deploy.yml
+#          ansible-playbook -i ansible/production.ini ansible/deploy.yml \
+#            -e "ansible_user=deployer" \
+#            -e "github_repository_name=${{ github.repository }}" \
+#            -e "ghcr_token=${{ secrets.GITHUB_TOKEN }}" \
+#            -e "ghcr_user=${{ github.actor }}" \
+#            -e "container_image_version=0.${{ github.run_number }}" 
+
+
 

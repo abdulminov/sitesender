@@ -20,7 +20,7 @@ services:
   web:
     #volumes:
       #      - ./config/settings.py:/code/config/settings.py # МОНТИРУЕМ ПОВЕРХ остальное.
-    image: bot_app:latest 
+    image: ghcr.io/{{ github_repository_name }}:{{ container_image_version }} 
     container_name: master_web
     command: python manage.py runserver 0.0.0.0:8000
     restart: always
