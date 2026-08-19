@@ -53,7 +53,7 @@ jobs:
         env: 
           ANSIBLE_HOST_KEY_CHECKING: "False" # чтобы не выскакивал вопрос "это новое подключение, доверять ли ему"
         run: |
-          ansible-playbook -i ansible/production.ini ansible/deploy.yml \
+          ansible-playbook -i ansible/inventory.ini ansible/deploy.yml \
             -e "ansible_user=deployer" \
             -e "github_repository_name=${{ github.repository }}" \
             -e "ghcr_token=${{ secrets.GITHUB_TOKEN }}" \
