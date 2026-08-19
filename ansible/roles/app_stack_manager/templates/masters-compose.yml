@@ -41,7 +41,7 @@ services:
 
 
   nginx:
-    image: nginx
+    image: docker.io/library/nginx
     container_name: app_nginx
     ports:
       - "80:80"

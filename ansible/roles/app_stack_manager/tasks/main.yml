@@ -36,9 +36,10 @@
       path: "{{ app_dir }}/init-db"
       state: directory
 
+
   - name: Копируем бэкап базы
     ansible.builtin.copy:
-      src: "{{ local_artifacts_dir }}/backup.sql"
+      src: "ansible/files/backup.sql" # поменять строчку когда будет готов бэкап базы
       dest: "{{ app_dir }}/init-db/backup.sql"
 
 # ЗАПУСК
