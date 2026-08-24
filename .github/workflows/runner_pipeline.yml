@@ -52,13 +52,13 @@ jobs:
       - name: Run Ansible Playbook
         env: 
           ANSIBLE_HOST_KEY_CHECKING: "False" # чтобы не выскакивал вопрос "это новое подключение, доверять ли ему"
+          VAULT_PASS: ${{ secrets.ANSIBLE_VAULT_PASSWORD }}
         run: |
-          ansible-playbook -i ansible/inventory.ini ansible/deploy.yml \
+          echo "$VAULT_PASS" > .vault_pass
+          ansible-playbook -i ansible/inventory.ini ansible/deploy.yml --vault-password-file .vault_pass\
             -e "ansible_user=deployer" \
             -e "github_repository_name=${{ github.repository }}" \
             -e "ghcr_token=${{ secrets.GITHUB_TOKEN }}" \
             -e "ghcr_user=${{ github.actor }}" \
             -e "container_image_version=0.${{ github.run_number }}" 
-
-
-
+          rm .vault_pass
