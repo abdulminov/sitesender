@@ -1,5 +1,4 @@
 ---
-
 - name: Создаем необходимые директории
   ansible.builtin.file:
     path: "{{ item }}"
@@ -9,13 +8,11 @@
     - "{{ app_dir }}" # папка для проекта
     - "/home/{{ deployer }}/.config/systemd/user" # папка для юнита systemd
 
-  
 - name: Регистрируемся в GHCR (репозиторий контейнеров от GitHub)
   containers.podman.podman_login:
     registry: ghcr.io
     username: "{{ ghcr_user }}"
     password: "{{ ghcr_token }}"
-
 
 - name: копирование юнит-файла и Docker-compose
   ansible.builtin.template:
@@ -29,18 +26,17 @@
 
 # НАСТРОЙКА БД (для мастера)
 - name: настройка БД для мастера
-  when: node_type== 'masters'    
+  when: node_type== 'masters'
   block:
-  - name: Создаем папку для инициализации БД
-    ansible.builtin.file:
-      path: "{{ app_dir }}/init-db"
-      state: directory
+    - name: Создаем папку для инициализации БД
+      ansible.builtin.file:
+        path: "{{ app_dir }}/init-db"
+        state: directory
 
-
-  - name: Копируем бэкап базы
-    ansible.builtin.copy:
-      src: "ansible/files/backup.sql" # поменять строчку когда будет готов бэкап базы
-      dest: "{{ app_dir }}/init-db/backup.sql"
+    - name: Копируем бэкап базы
+      ansible.builtin.copy:
+        src: "ansible/files/backup.sql" # поменять строчку когда будет готов бэкап базы
+        dest: "{{ app_dir }}/init-db/backup.sql"
 
 # ЗАПУСК
 - name: перезагрузка конфигов systemd и запуск проекта
@@ -48,13 +44,12 @@
     name: app-stack
     scope: user
     state: restarted
-    enabled: yes
-    daemon_reload: yes
+    enabled: true
+    daemon_reload: true
   when: config_files.changed
 
-
 - name: Ожидание полной готовности стека
-  shell: "systemctl --user is-active app-stack"
+  ansible.builtin.shell: "systemctl --user is-active app-stack"
   register: app_status
   # Пытаемся 60 раз (по 10 секунд = 10 минут суммарно)
   until: app_status.stdout == "active"
@@ -66,7 +61,6 @@
 - name: Применение миграций БД
   ansible.builtin.shell: "podman exec master_web python manage.py migrate"
   when: node_type == 'masters'
-  retries: 30 
+  retries: 30
   delay: 10
   run_once: true # это чтобы при запуске деплоя на нескольких нодах они все не ломанулись создавать миграции.
-

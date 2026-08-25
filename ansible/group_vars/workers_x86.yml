@@ -1,2 +1,3 @@
+---
 node_type: "workers"
 images_to_copy: "bot_app_x86.tar.gz"

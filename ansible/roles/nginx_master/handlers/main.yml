@@ -1,5 +1,6 @@
 ---
-- name: reload nginx config
-  become: yes
+- name: Reload nginx config
+  become: true
   become_user: "{{ deployer }}"
-  command: "podman exec nginx nginx -s reload"
+  ansible.builtin.command: "podman exec nginx nginx -s reload"
+

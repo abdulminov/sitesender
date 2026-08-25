@@ -1,6 +1,7 @@
+---
 - name: Hotfix update for yt-dlp inside container
   hosts: workers
-  become: yes
+  become: true
   become_user: "{{ app_user }}"
   tasks:
     - name: Upgrade yt-dlp inside container

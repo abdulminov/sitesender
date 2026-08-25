@@ -1,14 +1,11 @@
 ---
 - name: Подготовка нодов - для app_user и запуска podman
   hosts: workers_arm
-  become: yes
-
+  become: true
 
   tasks:
-
-
     - name: Установка правильных репозиториев (Debian Bookworm ARM)
-      become: yes
+      become: true
       copy:
         content: |
           deb http://mirror.yandex.ru/debian/ bookworm main contrib non-free non-free-firmware
@@ -16,82 +13,71 @@
           deb http://mirror.yandex.ru/debian-security/ bookworm-security main contrib non-free non-free-firmware
         dest: /etc/apt/sources.list
 
-
     - name: Install podman dependencies
       apt:
         name:
-
           - podman
-            #          - python3-podman-compose  # Официальный системный пакет
+          #          - python3-podman-compose  # Официальный системный пакет
           - slirp4netns
           - fuse-overlayfs
           - dbus-user-session
           - python3-pip
           - pipx
           - acl
-        update_cache: yes
-
+        update_cache: true
 
     - name: Install podman-compose via pipx
       community.general.pipx:
         name: podman-compose
         state: install
-        install_deps: yes
-
+        install_deps: true
 
     - name: создаем прикладного пользователя appuser для запуска контейнеров
       user:
         name: "{{ app_user }}"
         #uid: 10001
         shell: /usr/sbin/nologin
-        create_home: yes
+        create_home: true
       register: appuser_info
 
-
-
     - name: ensure lingering is enabled for appuser
-      command: "loginctl enable-linger {{ app_user }}" 
+      command: "loginctl enable-linger {{ app_user }}"
       args:
         creates: "/var/lib/systemd/linger/{{ app_user }}"
       environment:
         # Добавляем это, чтобы команда не упала с ошибкой "Bus n/a"
         XDG_RUNTIME_DIR: "/run/user/{{ appuser_info.uid }}"
 
-
     - name: set subuid and subgid for rootless podman
       lineinfile:
         path: /etc/{{ item }}
         line: "{{ app_user }}:100000:65536"
-        create: yes
+        create: true
       loop:
         - subuid
         - subgid
 
-
     - name: Allow user to bind to low ports
       sysctl:
         name: net.ipv4.ip_unprivileged_port_start
-        value: '80'
-        sysctl_set: yes
+        value: "80"
+        sysctl_set: true
         state: present
-
 
     - name: Аккуратная настройка репозиториев Podman
       blockinfile:
         path: /etc/containers/registries.conf
-        create: yes # Создать файл, если его вдруг нет
+        create: true # Создать файл, если его вдруг нет
         block: unqualified-search-registries = ["docker.io", "quay.io"]
         marker: "# {mark} ANSIBLE MANAGED BLOCK - REGISTRIES #"
 
-
     - name: Set timezone to Asia/Novosibirsk
-      become: yes
+      become: true
       timezone:
-        name: Asia/Novosibirsk     
-
+        name: Asia/Novosibirsk
 
     - name: Фиксируем правильный шлюз в cron для автозагрузки
-      become: yes
+      become: true
       cron:
         name: "Fix default gateway for VK"
         special_time: reboot

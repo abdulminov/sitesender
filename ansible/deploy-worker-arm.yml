@@ -3,59 +3,49 @@
   hosts: workers_arm
   serial: 1 # выполняется последовательно, по одному (1) хосту за раз.
   tasks:
-
-
     - name: Подготовка временной папки для Ansible под appuser
-      file:
+      ansible.builtin.file:
         path: "/home/{{ app_user }}/.ansible/tmp"
         state: directory
         owner: "{{ app_user }}"
         group: "{{ app_user }}"
-        mode: '0755' # Ansible сам поменяет на нужные через ACL
-      become: yes
+        mode: "0755" # Ansible сам поменяет на нужные через ACL
+      become: true
 
-
-    - name: получаем информацию о UID прикладного пользователя appuser
-      getent:
+    - name: Получаем информацию о UID прикладного пользователя appuser
+      ansible.builtin.getent:
         database: passwd
         key: "{{ app_user }}"
 
-
-    - name: задания, выполняемые от имени прикладного пользователя appuser
-      become: yes
+    - name: Задания, выполняемые от имени прикладного пользователя appuser
+      become: true
       become_user: "{{ app_user }}"
       environment:
         XDG_RUNTIME_DIR: "/run/user/{{ getent_passwd[app_user].1 }}"
       block:
+        - name: Создаем папку для проекта
+          ansible.builtin.file:
+            path: "{{ app_dir }}"
+            state: directory
+            mode: "0755"
 
+        - name: Создание директории для пользовательских юнитов
+          ansible.builtin.file:
+            path: "/home/{{ app_user }}/.config/systemd/user"
+            state: directory
+            mode: "0755"
 
-      - name: Создаем папку для проекта
-        file:
-          path: "{{ app_dir }}"
-          state: directory
-          mode: "0755"
+        - name: Копирование юнит-файла для пользовательского сервиса
+          ansible.builtin.template:
+            src: "{{ playbook_dir }}/../deploy/worker/app-stack.service.j2"
+            dest: "/home/{{ app_user }}/.config/systemd/user/app-stack.service"
+          register: systemd_unit
 
-
-      - name: создание директории для пользовательских юнитов
-        file:
-          path: "/home/{{ app_user }}/.config/systemd/user"
-          state: directory
-          mode: "0755"
-
-
-      - name: копирование юнит-файла для пользовательского сервиса
-        template:
-          src: "{{ playbook_dir }}/../deploy/worker/app-stack.service.j2"
-          dest: "/home/{{ app_user }}/.config/systemd/user/app-stack.service"
-        register: systemd_unit
-
-
-      - name: Копирование docker-compose.yml
-        template:
-          src: "{{ playbook_dir }}/../deploy/worker/docker-compose.yml.j2"
-          dest: "{{ app_dir }}/docker-compose.yml"
-        register: compose_file
-
+        - name: Копирование docker-compose.yml
+          ansible.builtin.template:
+            src: "{{ playbook_dir }}/../deploy/worker/docker-compose.yml.j2"
+            dest: "{{ app_dir }}/docker-compose.yml"
+          register: compose_file
 
 #      - name: Копирование файлов проекта (Dockerfile, compose, py)
 #        copy:
@@ -67,52 +57,45 @@
 #          - SiteSender.py
 #          - cookies.txt
 
+        - name: Копируем готовые образы (артефакты) на Воркер
+          ansible.builtin.copy:
+            src: "{{ local_artifacts_dir }}/{{ item }}"
+            dest: "{{ app_dir }}/"
+            mode: "0644"
+          loop:
+            - bot_app_arm.tar
+            - python-3.11-slim.tar
 
-      - name: Копируем готовые образы (артефакты) на Воркер 
-        copy:
-          src: "{{ local_artifacts_dir }}/{{ item }}"
-          dest: "{{ app_dir }}/"
-          mode: '0644'
-        loop:
-          - bot_app_arm.tar
-          - python-3.11-slim.tar
-
-
-      - name: Проверяем, загружены ли образы
-        command: "podman image exists {{ item }}"
-        register: image_check
-        ignore_errors: true
-        changed_when: false
-        loop:
-          - bot_app
+        - name: Проверяем, загружены ли образы
+          ansible.builtin.command: "podman image exists {{ item }}"
+          register: image_check
+          ignore_errors: true
+          changed_when: false
+          loop:
+            - bot_app
 #          - python-3.11-slim
 
+        - name: Загружаем образы с учётом архитектуры (только если их нет)
+          ansible.builtin.command: "podman load -i {{ app_dir }}/{{ item.item }}_{{ 'arm' if ansible_architecture == 'aarch64' else 'amd64' }}.tar"
+          when: item.rc != 0
+          loop: "{{ image_check.results }}"
+          register: load_result
+          changed_when: "'Loaded image' in load_result.stdout"
 
-      - name: Загружаем образы с учётом архитектуры (только если их нет)
-        command: "podman load -i {{ app_dir }}/{{ item.item }}_{{ 'arm' if ansible_architecture == 'aarch64' else 'amd64' }}.tar"
-        when: item.rc != 0
-        loop: "{{ image_check.results }}"
-        register: load_result
-        changed_when: "'Loaded image' in load_result.stdout"
+        - name: Перезагрузка конфигов systemd и запуск проекта
+          ansible.builtin.systemd:
+            name: app-stack
+            scope: user
+            state: started
+            enabled: true
+            daemon_reload: true
+          when: systemd_unit.changed or compose_file.changed
 
-
-      - name: перезагрузка конфигов systemd и запуск проекта
-        systemd:
-          name: app-stack
-          scope: user
-          state: started
-          enabled: yes
-          daemon_reload: yes
-        when: systemd_unit.changed or compose_file.changed
-
-
-      - name: Ожидание полной готовности стека
-        shell: "systemctl --user is-active app-stack"
-        register: app_status
-        # Пытаемся 60 раз (по 10 секунд = 10 минут суммарно)
-        until: app_status.stdout == "active"
-        retries: 60
-        delay: 10
-        changed_when: false
-
-
+        - name: Ожидание полной готовности стека
+          ansible.builtin.command: "systemctl --user is-active app-stack"
+          register: app_status
+          # Пытаемся 60 раз (по 10 секунд = 10 минут суммарно)
+          until: app_status.stdout == "active"
+          retries: 60
+          delay: 10
+          changed_when: false

@@ -1,16 +1,14 @@
 ---
 - name: Подготовка нодов - для deployer и запуска podman
   hosts: cluster
-  become: yes
-
+  become: true
 
   tasks:
     - name: Зеркало Яндекса для APT (основной репозиторий)
       replace:
         path: /etc/apt/sources.list
-        regexp: 'deb.debian.org'
-        replace: 'mirror.yandex.ru'
-
+        regexp: "deb.debian.org"
+        replace: "mirror.yandex.ru"
 
     - name: Install podman dependencies
       apt:
@@ -22,32 +20,28 @@
           - dbus-user-session
           - pip
           - acl
-        update_cache: yes
-
+        update_cache: true
 
     - name: создаем прикладного пользователя deployer для деплоя и запуска контейнеров
       user:
         name: "{{ deployer }}"
         uid: 10001
         shell: /bin/bash
-        create_home: yes
+        create_home: true
       register: deployer_info
-
 
     - name: Добавляем публичный SSH-ключ пайплайна для пользователя deployer
       ansible.posix.authorized_key:
         user: "{{ deployer }}"
         state: present
         key: "{{ lookup('file', 'files/id_ed25519_sitesender.pub') }}"
-        exclusive: yes
-      become: yes
-
+        exclusive: true
+      become: true
 
     - name: ensure lingering is enabled for deployer (созданием файла)
       ansible.builtin.command: "touch /var/lib/systemd/linger/deployer"
       args:
         creates: "/var/lib/systemd/linger/deployer"
-
 
         #args:
         #creates: "/var/lib/systemd/linger/{{ deployer }}"
@@ -55,48 +49,41 @@
         # Добавляем это, чтобы команда не упала с ошибкой "Bus n/a"
         #XDG_RUNTIME_DIR: "/run/user/{{ deployer_info.uid }}"
 
-
     - name: set subuid and subgid for rootless podman
       lineinfile:
         path: /etc/{{ item }}
         line: "{{ deployer }}:100000:65536"
-        create: yes
+        create: true
       loop:
         - subuid
         - subgid
 
-
     - name: Allow user to bind to low ports - какому пользователю дается эта привелегия? всем чтоли?
       sysctl:
         name: net.ipv4.ip_unprivileged_port_start
-        value: '80'
-        sysctl_set: yes
+        value: "80"
+        sysctl_set: true
         state: present
-
 
     - name: Аккуратная настройка репозиториев Podman
       blockinfile:
         path: /etc/containers/registries.conf
-        create: yes # Создать файл, если его вдруг нет
+        create: true # Создать файл, если его вдруг нет
         block: unqualified-search-registries = ["docker.io", "quay.io"]
         marker: "# {mark} ANSIBLE MANAGED BLOCK - REGISTRIES #"
 
-
-    #- name: Подготовка временной папки для Ansible под appuser
-    #  file:
-    #    path: "/home/{{ deployer }}/.ansible/tmp"
-    #    state: directory
-    #    owner: "{{ deployer }}"
-    #    group: "{{ deployer }}"
-    #    mode: '0755' # Ansible сам поменяет на нужные через ACL
-    #  become: yes
-
+    - name: Создание директории с проектом
+      file:
+        path: "{{ app_dir }}"
+        state: directory
+        owner: "{{ deployer }}"
+        group: "{{ deployer }}"
+      mode: "0755" # Ansible сам поменяет на нужные через ACL
 
     - name: Set timezone to Asia/Novosibirsk
-      become: yes
+      become: true
       timezone:
-        name: Asia/Novosibirsk     
-
+        name: Asia/Novosibirsk
 
           #- name: Фиксируем правильный шлюз в cron для автозагрузки
           #become: yes
