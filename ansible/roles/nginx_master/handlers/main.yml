@@ -3,4 +3,4 @@
   become: true
   become_user: "{{ deployer }}"
   ansible.builtin.command: "podman exec nginx nginx -s reload"
-
+  changed_when: false

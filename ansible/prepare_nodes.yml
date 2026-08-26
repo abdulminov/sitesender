@@ -78,7 +78,7 @@
         state: directory
         owner: "{{ deployer }}"
         group: "{{ deployer }}"
-      mode: "0755" # Ansible сам поменяет на нужные через ACL
+        mode: "0755" # Ansible сам поменяет на нужные через ACL
 
     - name: Set timezone to Asia/Novosibirsk
       become: true

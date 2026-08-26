@@ -1,0 +1,8 @@
+---
+- name: App_stack_manager - restart app stack
+  ansible.builtin.systemd:
+    name: app-stack
+    scope: user
+    state: restarted
+    enabled: true
+    daemon_reload: true

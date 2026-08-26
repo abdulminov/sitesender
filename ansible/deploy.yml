@@ -2,9 +2,8 @@
 - name: Деплой базы и админки
   hosts: cluster
   roles:
-    # Роль настройки Nginx 
-    - role: nginx_master
+     
+    - role: nginx_master # Роль настройки Nginx
       when: inventory_hostname in groups['masters']
 
-    #Основная роль для деплоя стека (унифицированная)
-    - role: app_stack_manager
+    - role: app_stack_manager #Основная роль для деплоя стека (унифицированная)

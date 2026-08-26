@@ -14,43 +14,35 @@
     username: "{{ ghcr_user }}"
     password: "{{ ghcr_token }}"
 
-- name: копирование юнит-файла и Docker-compose
+- name: Копирование юнит-файла и Docker-compose
   ansible.builtin.template:
     src: "{{ item.src }}"
     dest: "{{ item.dest }}"
+    mode: "0644"
   loop:
     - { src: "app-stack.service.j2", dest: "/home/{{ deployer }}/.config/systemd/user/app-stack.service" }
     - { src: "{{ node_type }}-compose.yml", dest: "{{ app_dir }}/docker-compose.yml" }
     # node_type = masters/workers, переменная в group_vars
-  register: config_files
+  notify: "App_stack_manager - restart app stack"
 
 # НАСТРОЙКА БД (для мастера)
-- name: настройка БД для мастера
+- name: Настройка БД для мастера
   when: node_type== 'masters'
   block:
     - name: Создаем папку для инициализации БД
       ansible.builtin.file:
         path: "{{ app_dir }}/init-db"
         state: directory
+        mode: "0644"
 
     - name: Копируем бэкап базы
       ansible.builtin.copy:
         src: "ansible/files/backup.sql" # поменять строчку когда будет готов бэкап базы
         dest: "{{ app_dir }}/init-db/backup.sql"
-
-# ЗАПУСК
-- name: перезагрузка конфигов systemd и запуск проекта
-  ansible.builtin.systemd:
-    name: app-stack
-    scope: user
-    state: restarted
-    enabled: true
-    daemon_reload: true
-  when: config_files.changed
+        mode: "0644"
 
 - name: Ожидание полной готовности стека
-  ansible.builtin.shell: "systemctl --user is-active app-stack"
-  register: app_status
+  ansible.builtin.shell: "systemctl --user is-active app-stack" # noqa: command-instead-of-module command-instead-of-shell
   # Пытаемся 60 раз (по 10 секунд = 10 минут суммарно)
   until: app_status.stdout == "active"
   retries: 60
@@ -59,8 +51,11 @@
 
 # МИГРАЦИИ (только для мастера)
 - name: Применение миграций БД
-  ansible.builtin.shell: "podman exec master_web python manage.py migrate"
-  when: node_type == 'masters'
+  ansible.builtin.command: "podman exec master_web python manage.py migrate"
+  register: app_stack_manager_migration_output
+  until: app_stack_manager_migration_output.rc==0
   retries: 30
   delay: 10
+  when: node_type == 'masters'
   run_once: true # это чтобы при запуске деплоя на нескольких нодах они все не ломанулись создавать миграции.
+  changed_when: "'No migrations to apply' not in app_stack_manager_migration_output.stdout"
