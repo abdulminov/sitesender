@@ -37,7 +37,7 @@
 
     - name: Копируем бэкап базы
       ansible.builtin.copy:
-        src: "ansible/files/backup.sql" # поменять строчку когда будет готов бэкап базы
+        src: "backup.sql" # поменять строчку когда будет готов бэкап базы
         dest: "{{ app_dir }}/init-db/backup.sql"
         mode: "0644"
 
