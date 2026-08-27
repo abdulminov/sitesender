@@ -33,7 +33,7 @@
       ansible.builtin.file:
         path: "{{ app_dir }}/init-db"
         state: directory
-        mode: "0644"
+        mode: "0755"
 
     - name: Копируем бэкап базы
       ansible.builtin.copy:
