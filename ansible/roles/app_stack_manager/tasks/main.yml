@@ -33,18 +33,23 @@
       ansible.builtin.file:
         path: "{{ app_dir }}/init-db"
         state: directory
+        owner: "{{ deployer }}"
+        group: "{{ deployer }}"
         mode: "0755"
 
     - name: Копируем бэкап базы
       ansible.builtin.copy:
         src: "backup.sql" # поменять строчку когда будет готов бэкап базы
         dest: "{{ app_dir }}/init-db/backup.sql"
+        owner: "{{ deployer }}"
+        group: "{{ deployer }}"
         mode: "0644"
 
 - name: Ожидание полной готовности стека
   ansible.builtin.shell: "systemctl --user is-active app-stack" # noqa: command-instead-of-module command-instead-of-shell
+  register: app_stack_manager_app_status
   # Пытаемся 60 раз (по 10 секунд = 10 минут суммарно)
-  until: app_status.stdout == "active"
+  until: app_stack_manager_app_status.stdout == "active"
   retries: 60
   delay: 10
   changed_when: false
