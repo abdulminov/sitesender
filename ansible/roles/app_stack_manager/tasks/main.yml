@@ -45,6 +45,15 @@
         group: "{{ deployer }}"
         mode: "0644"
 
+- name: Systemd is started
+  ansible.builtin.systemd:
+    name: app_stack
+    state: started
+    scope: user
+    enabled: true
+    daemon_reload: true
+
+
 - name: Ожидание полной готовности стека
   ansible.builtin.shell: "systemctl --user is-active app-stack" # noqa: command-instead-of-module command-instead-of-shell
   register: app_stack_manager_app_status
