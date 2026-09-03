@@ -47,7 +47,7 @@
 
 - name: Systemd is started
   ansible.builtin.systemd:
-    name: app_stack
+    name: app-stack
     state: started
     scope: user
     enabled: true
