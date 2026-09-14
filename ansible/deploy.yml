@@ -3,6 +3,6 @@
   hosts: cluster
   roles:
     - role: nginx_master # Роль настройки Nginx
-      when: inventory_hostname in groups['workers']
+      when: inventory_hostname in groups['masters']
 
     - role: app_stack_manager # Основная роль для деплоя стека (унифицированная)
