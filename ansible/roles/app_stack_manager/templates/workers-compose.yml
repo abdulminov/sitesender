@@ -2,9 +2,9 @@ name: worker_app_bot
 
 services:
   bot:
+    image: ghcr.io/{{ github_repository_name }}:{{ container_image_version }} 
     container_name: worker_app_bot
     command: python SiteSender.py
-    image: bot_app:latest
     restart: always
     ports:
       - "5000:5000"
