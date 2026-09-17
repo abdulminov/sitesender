@@ -25,6 +25,11 @@
     # node_type = masters/workers, переменная в group_vars
   notify: "App_stack_manager - restart app stack"
 
+
+- name: Применяем изменения стека немедленно
+  ansible.builtin.meta: flush_handlers
+
+
 # НАСТРОЙКА БД (для мастера)
 - name: Настройка БД для мастера
   when: node_type== 'masters'
