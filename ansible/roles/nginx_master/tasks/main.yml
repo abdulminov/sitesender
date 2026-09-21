@@ -3,4 +3,4 @@
   ansible.builtin.template:
     src: nginx.conf.j2
     dest: "{{ app_dir }}/nginx.conf"
-  notify: reload nginx config # вызов хендлера с назв. "restart nginx service". Он будет вызван если эта таска вернет "changed", то есть, когда файл изменился.
+  notify: Reload nginx config # вызов хендлера с назв. "Reload nginx config". Он будет вызван если эта таска вернет "changed", то есть, когда файл изменился.
