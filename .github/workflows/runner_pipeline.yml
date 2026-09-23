@@ -2,7 +2,7 @@ name: CI/CD pipeline
 
 on: 
   push:
-    branches: ["**"] #будет срабатывать на каждый пуш в любую ветку
+    branches: ["main"] #будет срабатывать на каждый пуш в любую ветку
     paths-ignore:
       - "README.md"
 
