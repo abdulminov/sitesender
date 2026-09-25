@@ -13,7 +13,7 @@ RUN sed -i 's/deb.debian.org/mirror.yandex.ru/g' /etc/apt/sources.list.d/debian.
     && rm -rf /var/lib/apt/lists/*
 
 
-COPY requirements.txt .
+COPY bot/requirements.txt .
 # устанавливаем библиотеку в отдельную папку:
 RUN pip install --no-cache-dir --prefix=/install -r requirements.txt
 
@@ -44,7 +44,8 @@ RUN sed -i 's/deb.debian.org/mirror.yandex.ru/g' /etc/apt/sources.list.d/debian.
 
 RUN groupadd -g 10001 appgroup && \
     useradd -r -u 10001 -g appgroup -s /sbin/nologin appuser 
-
-COPY --chown=appuser:appgroup SiteSender.py cookies.txt /code/
+COPY --chown=appuser:appgroup bot/config/ /code/config/
+COPY --chown=appuser:appgroup common/logs/ /code/logs/
+COPY --chown=appuser:appgroup bot/SiteSender.py /code/
 #RUN chown -R appuser:appgroup /code $PLAYWRIGHT_BROWSERS_PATH
 USER 10001

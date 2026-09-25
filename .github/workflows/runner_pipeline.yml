@@ -39,7 +39,6 @@ jobs:
           context: ./app/
           push: true
           tags: |
-            ghcr.io/${{ github.repository }}:latest
             ghcr.io/${{ github.repository }}:0.${{ github.run_number }}
 
 

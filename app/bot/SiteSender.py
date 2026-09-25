@@ -176,50 +176,6 @@ async def handle_video(message: Message, url: str, retry: bool = False):
 
     return success, error_msg
 
-'''async def handle_pdf(message: Message, url: str):
-    await message.answer(f"SONY 📄 Делаю PDF страницы...")
-    file_path = f"{DOWNLOAD_PATH}/page_{message.from_id}.pdf"
-
-    # Инициализируем переменную браузера заранее
-    browser = None
-    try:
-        async with async_playwright() as p:
-            browser = await p.chromium.launch(headless=True)
-            context = await browser.new_context(viewport={'width': 1920, 'height': 1080})
-            page = await context.new_page()
-
-            await page.goto(url, wait_until="domcontentloaded", timeout=90000)
-            await asyncio.sleep(3)
-
-            # ... ваш код прокрутки и ожидания селектора ...
-
-            await page.pdf(path=file_path, format="A4", print_background=True)
-            # await browser.close() <- ОТСЮДА УДАЛЯЕМ
-
-        # Отправка файла в ВК
-        uploader = DocMessagesUploader(bot.api)
-        doc = await uploader.upload(
-            file_source=file_path,
-            peer_id=message.peer_id,
-            title="Снимок_страницы.pdf"
-        )
-        await message.answer(attachment=doc)
-        success, error_msg = (True, None)
-
-    except Exception as e:
-        await message.answer(f"SONY ❌ Ошибка PDF: {str(e)}")
-        success, error_msg = (False, str(e))
-
-    finally:
-        # ЗАКРЫВАЕМ БРАУЗЕР ЗДЕСЬ (Всегда)
-        if browser:
-            await browser.close()
-        # Удаление файла
-        if os.path.exists(file_path):
-            os.remove(file_path)
-        return (success, error_msg)
-'''
-
 if __name__ == "__main__":
     # Запускаем веб-сервер на порту 5000
     uvicorn.run(app, host="0.0.0.0", port=5000)
