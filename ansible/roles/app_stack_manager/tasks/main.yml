@@ -25,6 +25,17 @@
     # node_type = masters/workers, переменная в group_vars
   notify: "App_stack_manager - restart app stack"
 
+- name: Копирование cookies для bot
+  ansible.builtin.copy:
+    src: "{{ lookup('env', 'HOME') }}/cookies.txt"
+    dest: "{{ app_dir }}/cookies.txt"
+    owner: "{{ deployer }}"
+    group: "{{ deployer }}"
+    mode: "0600"
+  when: node_type == 'workers'
+  notify: "App_stack_manager - restart app stack"
+
+
 # 
 - name: запускаем хендлеры до завершения плейбука. Иначе следующая работа не пройдет, если контейнер web 
   ansible.builtin.meta: flush_handlers

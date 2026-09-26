@@ -63,12 +63,20 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-
+      
+      - name: Check build context
+        run: |
+          pwd
+          echo "=== repository ==="
+          ls -la
+          echo "=== app ==="
+          find app -maxdepth 2 -type f | sort
+          
       - name: Build and Push web image to GHCR
         uses: docker/build-push-action@v5
         with:
           context: ./app/
-          file: ./web/Dockerfile
+          file: ./app/web/Dockerfile
           push: true
           tags: |
             ghcr.io/${{ github.repository }}-web:0.${{ github.run_number }}
@@ -113,11 +121,19 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Check build context
+        run: |
+          pwd
+          echo "=== repository ==="
+          ls -la
+          echo "=== app ==="
+          find app -maxdepth 2 -type f | sort
+      
       - name: Build and Push bot image to GHCR
         uses: docker/build-push-action@v5
         with:
           context: ./app/
-          file: ./bot/Dockerfile
+          file: ./app/bot/Dockerfile
           push: true
           tags: |
             ghcr.io/${{ github.repository }}-bot:0.${{ github.run_number }}
