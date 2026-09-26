@@ -2,16 +2,16 @@ name: worker_app_bot
 
 services:
   bot:
-    image: ghcr.io/{{ github_repository_name }}:{{ container_image_version }} 
+    image: ghcr.io/{{ github_repository_name }}-bot:{{ container_image_version }} 
     container_name: worker_app_bot
+    volumes: 
+      - ~/cookies.txt:/code/cookies.txt:ro
     command: python SiteSender.py
     restart: always
     ports:
       - "5000:5000"
     tmpfs:
       - /tmp
-        #cap_drop:
-        #- ALL
     environment:
       - DB_NAME=bot_db
       - DB_USER=admin
@@ -21,6 +21,3 @@ services:
       - BOT_TOKEN={{ vault_vk_token }}
       - MY_NODE_NAME={{ inventory_hostname }}
       - YTDLP_JS_RUNTIME=node
-#   volumes:      #убрать после отработки
-#      - .:/code
-

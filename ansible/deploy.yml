@@ -1,5 +1,5 @@
 ---
-- name: Деплой базы и админки
+- name: Деплой
   hosts: cluster
   roles:
     - role: nginx_master # Роль настройки Nginx

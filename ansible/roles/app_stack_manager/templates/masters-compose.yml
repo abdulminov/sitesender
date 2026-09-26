@@ -20,7 +20,7 @@ services:
   web:
     #volumes:
       #      - ./config/settings.py:/code/config/settings.py # МОНТИРУЕМ ПОВЕРХ остальное.
-    image: ghcr.io/{{ github_repository_name }}:{{ container_image_version }} 
+    image: ghcr.io/{{ github_repository_name }}-web:{{ container_image_version }} 
     container_name: master_web
     command: python manage.py runserver 0.0.0.0:8000
     restart: always
@@ -34,7 +34,6 @@ services:
       - DB_PASSWORD={{ vault_db_password }}
       - DB_HOST=db
       - DB_PORT=5432
-      - BOT_TOKEN={{ vault_vk_token }}
       - ALLOWED_HOSTS={{ django_allowed_hosts }}
     networks:
       - default
