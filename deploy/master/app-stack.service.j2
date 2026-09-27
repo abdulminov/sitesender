@@ -1,0 +1,21 @@
+[Unit]
+Description=Управление стеком контейнеров {{ inventory_hostname }}
+# Ждем, пока поднимется сеть
+After=network-online.target
+
+[Service]
+Type=simple
+# Путь к твоей папке с проектом
+WorkingDirectory={{ app_dir }}
+# Даем сервису 1 час (3600 сек) на запуск
+TimeoutStartSec=3600
+# Команды запуска и остановки
+ExecStart=/usr/bin/podman-compose up --force-recreate
+ExecStop=/usr/bin/podman-compose down
+# Если что-то упало — перезапускаем через 5 секунд
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=default.target
+
