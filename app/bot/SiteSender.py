@@ -165,7 +165,7 @@ async def handle_video(message: Message, url: str, retry: bool = False):
             if filename and os.path.exists(filename):
                 os.remove(filename)
             # Пробуем еще раз с качеством 480p
-            success, error_msg = handle_video(message, url, retry=True)
+            success, error_msg = await handle_video(message, url, retry=True)
             return await success, error_msg
         else:
             await message.answer(f"SONY ❌ Не удалось отправить даже в 480p: {str(e)}")
