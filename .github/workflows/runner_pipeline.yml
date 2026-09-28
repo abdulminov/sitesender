@@ -2,7 +2,7 @@ name: CI/CD pipeline
 
 on: 
   push:
-    branches: ["main"]
+    branches: ["**"]
     paths-ignore:
       - "README.md"
   
