@@ -49,6 +49,11 @@ async def handle_webhook(request: Request):
     try:
         data = await request.json()
     except:
+        import traceback
+        
+        print("========== VIDEO ERROR ==========", flush=True)
+        traceback.print_exc()
+        print("=================================", flush=True)
         return PlainTextResponse("error")
 
     # 2. Если это подтверждение — отдаем код СРАЗУ, никуда больше не заходя
@@ -160,6 +165,11 @@ async def handle_video(message: Message, url: str, retry: bool = False):
 
 
     except Exception as e:
+        import traceback
+
+        print("========== VIDEO ERROR ==========", flush=True)
+        traceback.print_exc()
+        print("=================================", flush=True)
         error_msg = str(e)
         if not retry:
             if filename and os.path.exists(filename):
