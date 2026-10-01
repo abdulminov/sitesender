@@ -42,6 +42,9 @@ DOWNLOAD_PATH='/tmp'
 
 app = FastAPI()
 
+@app.get("/health")
+async def health():
+    return {"status": "ok"}
 
 @app.post("/callbackA")
 async def handle_webhook(request: Request):
