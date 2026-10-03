@@ -70,10 +70,9 @@
 
 - name: Ожидание bot healthcheck
   ansible.builtin.shell: >
-    sudo -u deployer
-    XDG_RUNTIME_DIR=/run/user/$(id -u deployer)
     podman inspect worker_app_bot
-    --format '{{.State.Health.Status}}'
+    --format '{% raw %}{{.State.Health.Status}}{% endraw %}'
+    # эти raw и endrow нужны, чтобы деактивировать ansible, так как он думает, эти фигурные скобки для него, а не для podman
   when: node_type== 'workers'
   register: app_stack_manager_bot_health
   # Пытаемся 10 раз (по 10 секунд = 100 секунд суммарно)
