@@ -68,6 +68,25 @@
     enabled: true
     daemon_reload: true
 
+- name: Ожидание bot healthcheck
+  ansible.builtin.shell: >
+    sudo -u deployer
+    XDG_RUNTIME_DIR=/run/user/$(id -u deployer)
+    podman inspect worker_app_bot
+    --format '{{.State.Health.Status}}'
+  when: node_type== 'workers'
+  register: app_stack_manager_bot_health
+  # Пытаемся 10 раз (по 10 секунд = 100 секунд суммарно)
+  until: app_stack_manager_bot_health.stdout | trim == "healthy"
+  retries: 10
+  delay: 10
+  changed_when: false
+
+
+- name: Показать результат bot healthcheck
+  ansible.builtin.debug:
+    msg: "Bot healthcheck: {{ app_stack_manager_bot_health.stdout | trim }}"
+  when: node_type == 'workers'
 
 - name: Ожидание полной готовности стека
   ansible.builtin.shell: "systemctl --user is-active app-stack" # noqa: command-instead-of-module command-instead-of-shell
