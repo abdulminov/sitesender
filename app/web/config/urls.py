@@ -16,8 +16,17 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path, include
+from django.http import JsonResponse
+from django.db import connections
+from django.db.utils import OperationalError
+
+
+def health_check(request):
+    return JsonResponse({"status": "healthy"}, status=200)
+
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path('logs/', include('logs.urls')), #подключаем наши логи
+    path('logs/', include('logs.urls')), #подключаем страничку с БД
+    path('health/', health_check, name='health_check'), #подключаем healthcheck
 ]
