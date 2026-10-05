@@ -71,6 +71,7 @@
 - name: Ожидание bot healthcheck
   containers.podman.podman_container_info:
     name: worker_app_bot
+  when: node_type == 'workers'
   register: bot_info
   until:
     - bot_info.containers | length > 0
@@ -79,6 +80,21 @@
   retries: 60
   delay: 10
   changed_when: false
+
+
+- name: Ожидание web healthcheck
+  containers.podman.podman_container_info:
+    name: master_web
+  when: node_type == 'masters'
+  register: web_info
+  until:
+    - web_info.containers | length > 0
+    - web_info.containers[0].State.Health is defined
+    - web_info.containers[0].State.Health.Status == "healthy"
+  retries: 60
+  delay: 10
+  changed_when: false
+
 
 # МИГРАЦИИ (только для мастера)
 - name: Применение миграций БД
