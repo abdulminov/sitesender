@@ -20,7 +20,7 @@ services:
   web:
     #volumes:
       #      - ./config/settings.py:/code/config/settings.py # МОНТИРУЕМ ПОВЕРХ остальное.
-    image: ghcr.io/{{ github_repository_name }}-web:{{ container_image_version }} 
+    image: {{ image_name }}
     container_name: master_web
     command: python manage.py runserver 0.0.0.0:8000
     restart: always
@@ -38,7 +38,10 @@ services:
     networks:
       - default
     healthcheck:
-      test: ["CMD-SHELL", "python -c 'import urllib.request; urllib.request.urlopen(\"http://127.0.0.1:8000/health\")'"]
+      test: [
+        "CMD-SHELL",
+        "python -c 'import urllib.request; urllib.request.urlopen(\"http://127.0.0.1:8000/health/\", timeout=3)'"
+        ]
       interval: 10s
       timeout: 5s
       retries: 6

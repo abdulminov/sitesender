@@ -23,7 +23,7 @@
     - { src: "app-stack.service.j2", dest: "/home/{{ deployer }}/.config/systemd/user/app-stack.service" }
     - { src: "{{ node_type }}-compose.yml", dest: "{{ app_dir }}/docker-compose.yml" }
     # node_type = masters/workers, переменная в group_vars
-  notify: "App_stack_manager - restart app stack"
+  #notify: "App_stack_manager - restart app stack"
 
 - name: Копирование cookies для bot
   ansible.builtin.copy:
@@ -33,11 +33,7 @@
     group: "{{ deployer }}"
     mode: "0666"
   when: node_type == 'workers'
-  notify: "App_stack_manager - restart app stack"
 
-
-- name: запускаем хендлеры до завершения плейбука. Иначе следующая работа не пройдет, если контейнер web 
-  ansible.builtin.meta: flush_handlers
 
 
 # НАСТРОЙКА БД (для мастера)
@@ -60,40 +56,115 @@
         group: "{{ deployer }}"
         mode: "0644"
 
-- name: Systemd is started
-  ansible.builtin.systemd:
-    name: app-stack
-    state: started
-    scope: user
-    enabled: true
-    daemon_reload: true
 
-- name: Ожидание bot healthcheck
-  containers.podman.podman_container_info:
-    name: worker_app_bot
-  when: node_type == 'workers'
-  register: bot_info
-  until:
-    - bot_info.containers | length > 0
-    - bot_info.containers[0].State.Health is defined
-    - bot_info.containers[0].State.Health.Status == "healthy"
-  retries: 60
-  delay: 10
+- name: Получить версию (тег) образа запущенного контейнера
+  ansible.builtin.command: >
+    podman inspect --format '{% raw %}{{ .Config.Image }}{% endraw %}' {{ container_name }}
+  register: podman_image_info
   changed_when: false
 
 
-- name: Ожидание web healthcheck
-  containers.podman.podman_container_info:
-    name: master_web
-  when: node_type == 'masters'
-  register: web_info
-  until:
-    - web_info.containers | length > 0
-    - web_info.containers[0].State.Health is defined
-    - web_info.containers[0].State.Health.Status == "healthy"
-  retries: 60
-  delay: 10
-  changed_when: false
+- name: Вывести версию запущенного образа
+  ansible.builtin.debug:
+    msg: "Запущенный образ: {{ podman_image_info.stdout }}"
+
+
+- name: Записать версию запущенного образа
+  ansible.builtin.copy:
+    content: "{{ podman_image_info.stdout }}"
+    dest: "{{ app_dir }}/{{ container_name }}.current_version"
+    mode: '0644'
+  when: podman_image_info.rc == 0
+
+- name: старт и healthcheck
+  block:
+  - name: рестарт сервиса (podman compose up + down)
+    ansible.builtin.systemd:
+      name: app-stack
+      scope: user
+      state: restarted
+      enabled: true
+      daemon_reload: true
+
+
+  - name: Systemd is started
+    ansible.builtin.systemd:
+      name: app-stack
+      state: started
+      scope: user
+      enabled: true
+      daemon_reload: true
+
+
+  - name: Ожидание container_name healthcheck
+    containers.podman.podman_container_info:
+      name: "{{ container_name }}"
+    when: node_type == 'workers'
+    register: container_info
+    until:
+      - container_info.containers | length > 0
+      - container_info.containers[0].State.Health is defined
+      - container_info.containers[0].State.Health.Status == "healthy"
+    retries: 30
+    delay: 10
+    changed_when: false
+
+  rescue: #Rollback
+  - name: 🚨 Внимание! Деплой упал. Начинаем процесс Rollback.
+    ansible.builtin.debug:
+      msg: "Новая версия не прошла проверку здоровья. Читаем бэкап-файл стейта..."
+
+  - name: Прочитать файл с предыдущим стабильным образом
+    ansible.builtin.command: cat "{{ app_dir }}/{{ container_name }}.current_version"
+    register: rollback_image
+    failed_when: false
+    changed_when: false
+
+  - name: Копирование юнит-файла и Docker-compose
+    ansible.builtin.template:
+      src: "{{ item.src }}"
+      dest: "{{ item.dest }}"
+      mode: "0644"
+    loop:
+      - { src: "app-stack.service.j2", dest: "/home/{{ deployer }}/.config/systemd/user/app-stack.service" }
+      - { src: "{{ node_type }}-compose.yml", dest: "{{ app_dir }}/docker-compose.yml" }
+    vars:
+      image_name: "{{rollback_image}}"
+    
+  - name: рестарт сервиса (podman compose up + down)
+    ansible.builtin.systemd:
+      name: app-stack
+      scope: user
+      state: restarted
+      enabled: true
+      daemon_reload: true
+
+
+  - name: Systemd is started
+    ansible.builtin.systemd:
+      name: app-stack
+      state: started
+      scope: user
+      enabled: true
+      daemon_reload: true
+
+
+  - name: Ожидание container_name healthcheck
+    containers.podman.podman_container_info:
+      name: "{{ container_name }}"
+    when: node_type == 'workers'
+    register: container_info
+    until:
+      - container_info.containers | length > 0
+      - container_info.containers[0].State.Health is defined
+      - container_info.containers[0].State.Health.Status == "healthy"
+    retries: 30
+    delay: 10
+    changed_when: false
+
+  - name: Сообщить об успешном откате
+    ansible.builtin.fail:
+      msg: "Деплой новой версии завершился ошибкой, но система была успешно откатана на стабильный образ: {{ rollback_image_raw.stdout }}"
 
 
 # МИГРАЦИИ (только для мастера)

@@ -1,0 +1,4 @@
+---
+node_type: "workers"
+container_name: "worker_app_bot"
+bot_or_web: "bot"
