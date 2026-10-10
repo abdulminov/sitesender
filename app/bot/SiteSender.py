@@ -46,7 +46,7 @@ app = FastAPI()
 async def health():
     return {"status": "ok"}
 
-@app.post("/callbackA")
+@app.po st("/callbackA")
 async def handle_webhook(request: Request):
     # 1. Получаем JSON от VK
     try:
