@@ -91,7 +91,6 @@ def get_ydl_options(height: int):
 
 @bot.on.message()
 async def main_handler(message: Message):
-    raise RuntimeError("TEST: intentional error in message handler")
     start_time = time.perf_counter() # засекаем таймер
 
     text = message.text.strip()
