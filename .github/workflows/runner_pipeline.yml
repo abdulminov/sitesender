@@ -39,6 +39,7 @@ jobs:
         id: filter
         uses: dorny/paths-filter@v3
         with:
+          base: ${{ github.ref }}
           filters: |
             web:
               - 'app/web/**'
@@ -46,7 +47,9 @@ jobs:
             bot:
               - 'app/bot/**'
               - 'app/common/**'
-
+            CI-CD:
+              - 'ansible/**'
+              - '.github/**'
 
 
   web-build-and-deploy:
@@ -121,14 +124,7 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Check build context
-        run: |
-          pwd
-          echo "=== repository ==="
-          ls -la
-          echo "=== app ==="
-          find app -maxdepth 2 -type f | sort
-      
+          
       - name: Build and Push bot image to GHCR
         uses: docker/build-push-action@v5
         with:
@@ -153,6 +149,47 @@ jobs:
           echo "$VAULT_PASS" > .vault_pass
           ansible-playbook -i ansible/inventory.ini ansible/deploy.yml --vault-password-file .vault_pass\
             --limit workers \
+            -e "ansible_user=deployer" \
+            -e "github_repository_name=${{ github.repository }}" \
+            -e "ghcr_token=${{ secrets.GITHUB_TOKEN }}" \
+            -e "ghcr_user=${{ github.actor }}" \
+            -e "container_image_version=0.${{ github.run_number }}" 
+          rm .vault_pass
+
+
+  
+  ansible-deploy:
+    needs: changes #требуется получить результаты проверки changes
+    if: needs.changes.outputs.CI-CD == 'true' &&
+        needs.changes.outputs.web == 'false' &&
+        needs.changes.outputs.bot == 'false'
+    runs-on: self-hosted
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+
+      - name: Log in to Github Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+
+      - name: Настраиваем SSH-ключ для доступа к серверу
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.SSH_DEPLOYER_PRIVATE_KEY }} # Ключ деплоера из секретов
+
+
+      - name: Deploy
+        env: 
+          ANSIBLE_HOST_KEY_CHECKING: "False" # чтобы не выскакивал вопрос "это новое подключение, доверять ли ему"
+          VAULT_PASS: ${{ secrets.ANSIBLE_VAULT_PASSWORD }}
+        run: |
+          echo "$VAULT_PASS" > .vault_pass
+          ansible-playbook -i ansible/inventory.ini ansible/deploy.yml --vault-password-file .vault_pass\
             -e "ansible_user=deployer" \
             -e "github_repository_name=${{ github.repository }}" \
             -e "ghcr_token=${{ secrets.GITHUB_TOKEN }}" \

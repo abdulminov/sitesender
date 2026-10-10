@@ -13,8 +13,8 @@ TimeoutStartSec=3600
 ExecStart=/usr/bin/podman-compose up --force-recreate
 ExecStop=/usr/bin/podman-compose down
 # Если что-то упало — перезапускаем через 5 секунд
-Restart=always
-RestartSec=5
+#Restart=always
+#RestartSec=5
 
 [Install]
 WantedBy=default.target
