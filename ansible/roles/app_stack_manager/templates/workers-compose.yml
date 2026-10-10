@@ -6,7 +6,7 @@ services:
     container_name: worker_app_bot
     volumes: 
       - ~/app/cookies.txt:/code/cookies.txt:rw
-    command: python SiteSender.py
+    command: sh -c "sleep 10 && python SiteSender.py"
     restart: always
     ports:
       - "5000:5000"

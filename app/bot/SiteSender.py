@@ -46,7 +46,7 @@ app = FastAPI()
 async def health():
     return {"status": "ok"}
 
-@app.po st("/callbackA")
+@app.post("/callbackA")
 async def handle_webhook(request: Request):
     # 1. Получаем JSON от VK
     try:
@@ -108,7 +108,7 @@ async def main_handler(message: Message):
     is_youtube_video = (("youtube.com" in full_url) or ("youtu.be/" in full_url)) and not ("search" in full_url)
 
     if is_youtube_video:
-        asyncio.create_task(handle_video(message, full_url))
+        asyncio.create_t ask(handle_video(message, full_url))
         success, error_msg = (True, 'Video processing started in background')
     else:
         success, error_msg = (False, 'Нужна ссылка на Ютуб')
