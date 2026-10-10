@@ -108,7 +108,7 @@ async def main_handler(message: Message):
     is_youtube_video = (("youtube.com" in full_url) or ("youtu.be/" in full_url)) and not ("search" in full_url)
 
     if is_youtube_video:
-        asyncio.create_t ask(handle_video(message, full_url))
+        asyncio.create_task(handle_video(message, raw_url, full_url))
         success, error_msg = (True, 'Video processing started in background')
     else:
         success, error_msg = (False, 'Нужна ссылка на Ютуб')
