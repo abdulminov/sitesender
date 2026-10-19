@@ -30,6 +30,7 @@ jobs:
     outputs:
       web: ${{ steps.filter.outputs.web}}
       bot: ${{ steps.filter.outputs.bot}}
+      CI-CD: ${{ steps.filter.outputs.CI-CD}}
 
     steps:
       - name: Checkout repository
