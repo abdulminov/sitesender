@@ -1,16 +1,18 @@
-import os
-import django
-import time
-import re
 import asyncio
+import os
+import re
+import time
+
+import django
+import uvicorn
+from django.db import close_old_connections
+from dotenv import load_dotenv
 from fastapi import FastAPI, Request
 from fastapi.responses import PlainTextResponse
-import uvicorn
-from dotenv import load_dotenv
-from vkbottle.bot import Bot, Message
 from vkbottle import DocMessagesUploader
+from vkbottle.bot import Bot, Message
 from yt_dlp import YoutubeDL
-from django.db import close_old_connections
+
 
 # 0 - Настройка Django: говорим скрипту, где лежат настройки проекта
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'config.settings')
@@ -51,7 +53,7 @@ async def handle_webhook(request: Request):
     # 1. Получаем JSON от VK
     try:
         data = await request.json()
-    except:
+    except Exception:
         import traceback
         
         print("========== VIDEO ERROR ==========", flush=True)
@@ -167,7 +169,7 @@ async def handle_video(message: Message, url: str, retry: bool = False):
         await message.answer(f"SONY 🎬 Вот ваше видео: {title}", attachment=doc)
 
 
-    except Exception as e:
+    except Exception as e: # noqa: BLE001
         import traceback
 
         print("========== VIDEO ERROR ==========", flush=True)
@@ -181,7 +183,7 @@ async def handle_video(message: Message, url: str, retry: bool = False):
             success, error_msg = await handle_video(message, url, retry=True)
             return success, error_msg
         else:
-            await message.answer(f"SONY ❌ Не удалось отправить даже в 480p: {str(e)}")
+            await message.answer(f"SONY ❌ Не удалось отправить даже в 480p: {e}")
 
     finally:
         if filename and os.path.exists(filename):
