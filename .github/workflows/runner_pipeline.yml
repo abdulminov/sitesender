@@ -17,7 +17,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Run Code Linting
-        run: echo "Тут мы запускаем flake8 или black"
+        run: /home/runner/ci-tools-venv/bin/ruff check --no-cache ./app
 
       - name: Run Django Tests
         run: echo "Тут мы прогоняем python manage.py test"

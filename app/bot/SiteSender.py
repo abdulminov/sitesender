@@ -53,7 +53,7 @@ async def handle_webhook(request: Request):
     # 1. Получаем JSON от VK
     try:
         data = await request.json()
-    except Exception:
+    except Exception:   # noqa: BLE001
         import traceback
         
         print("========== VIDEO ERROR ==========", flush=True)
