@@ -1,5 +1,7 @@
 from django.shortcuts import render
+
 from .models import RequestLog
+
 
 def logs_list(request):
     status_filter = request.GET.get('status')

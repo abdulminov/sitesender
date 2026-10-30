@@ -1,5 +1,6 @@
 from django.db import models
 
+
 class RequestLog(models.Model):
     user_id = models.CharField(max_length=100, verbose_name="ID Пользователя")
     url = models.TextField(verbose_name="Запрошенный URL")
