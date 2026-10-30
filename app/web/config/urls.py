@@ -17,8 +17,6 @@ Including another URLconf
 from django.contrib import admin
 from django.urls import path, include
 from django.http import JsonResponse
-from django.db import connections
-from django.db.utils import OperationalError
 
 
 def health_check(request):
