@@ -107,7 +107,7 @@ async def main_handler(message: Message):
 
     # 2. Определение режима: Видео (конкретный ролик) или PDF (все остальное, включая поиск)
     # Проверяем, что это YouTube И что в ссылке есть маркеры конкретного видео
-    is_youtube_video = (("youtube.com" in full_url) or ("youtu.be/" in full_url)) and not ("search" in full_url)
+    is_youtube_video = (("youtube.com" in full_url) or ("youtu.be/" in full_url)) and "search" not in full_url
 
     if is_youtube_video:
         asyncio.create_task(handle_video(message, full_url))
