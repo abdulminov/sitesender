@@ -11,8 +11,8 @@ select = ["E", "F", "I"]
 # отключаем правила для конкретных файлов
 [tool.ruff.lint.per-file-ignores]
 # разрешаем слепые исключения BLE001 и импорты не в начале файла E402
-"app/bot/SiteSender.py" = ["BLE001", "E402", "I001"]
+"app/bot/SiteSender.py" = ["E402", "I001"]
 # разрешаем несоответствовать некоторым строгим правилам
-"app/web/manage.py" = ["INP001"]
+"app/web/manage.py" = []
 # игнорируем автосгенерированные файлы миграций в части длины строк
-"app/commot/logs/migrations/*" = ["E501", "I001"]
+"app/common/logs/migrations/*" = ["E501", "I001"]
