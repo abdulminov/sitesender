@@ -14,16 +14,29 @@
     username: "{{ ghcr_user }}"
     password: "{{ ghcr_token }}"
 
+
+- name: Прочитать текущий стабильный образ (если версия не меняется)
+  ansible.builtin.command: cat "{{ app_dir }}/{{ container_name }}.container_stable_version"
+  register: current_stable_image
+  changed_when: false
+  when: container_image_version == 'keep_stable'
+
+- name: Подставить текущий образ в переменную image_name
+  ansible.builtin.set_fact:
+    image_name: "{{ current_stable_image.stdout | trim }}"
+  when: container_image_version == 'keep_stable'
+
+
 - name: Копирование юнит-файла и Docker-compose
   ansible.builtin.template:
     src: "{{ item.src }}"
     dest: "{{ item.dest }}"
-    mode: "0644"
+    mode: "0600" # было 0644
   loop:
     - { src: "app-stack.service.j2", dest: "/home/{{ deployer }}/.config/systemd/user/app-stack.service" }
     - { src: "{{ node_type }}-compose.yml", dest: "{{ app_dir }}/docker-compose.yml" }
     # node_type = masters/workers, переменная в group_vars
-  #notify: "App_stack_manager - restart app stack"
+    #notify: "App_stack_manager - restart app stack"
 
 - name: Копирование cookies для bot
   ansible.builtin.copy:
@@ -31,7 +44,7 @@
     dest: "{{ app_dir }}/cookies.txt"
     owner: "{{ deployer }}"
     group: "{{ deployer }}"
-    mode: "0666"
+    mode: "0600"  #было 0666
   when: node_type == 'workers'
 
 
@@ -176,5 +189,12 @@
   retries: 30
   delay: 10
   when: node_type == 'masters'
-  run_once: true # это чтобы при запуске деплоя на нескольких нодах они все не ломанулись создавать миграции.
+  run_once: true # это чтобы при запуске деплоя на нескольких нодах они все не ломанулись выполнять миграции.
   changed_when: "'No migrations to apply' not in app_stack_manager_migration_output.stdout"
+
+
+- name: Очистка неиспользуемых образов старше 7 дней
+  ansible.builtin.command: >
+    podman image prune -a --filter "until=168h" -f
+  register: podman_prune_output
+  changed_when: "'Deleted Images:' in podman_prune_output.stdout"
