@@ -1,11 +1,11 @@
 name: CI/CD pipeline
 
-on: 
+on:
   push:
     branches: ["**"]
     paths-ignore:
       - "README.md"
-  
+
   workflow_dispatch:
 
 jobs:
@@ -36,8 +36,8 @@ jobs:
               - 'app/common/**'
             CI-CD:
               - 'ansible/**'
-  
-  
+
+
   test-and-lint:
     #проверка кода
     runs-on: self-hosted
@@ -47,6 +47,9 @@ jobs:
 
       - name: Run Code Linting
         run: /home/runner/ci-tools-venv/bin/ruff check --no-cache ./app
+
+      - name: Run YAML linting
+        run: /home/runner/ci-tools-venv/bin/yamllint .
 
       - name: Run Django Tests
         run: echo "Тут мы прогоняем python manage.py test"
@@ -66,7 +69,7 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-      
+
       - name: Check build context
         run: |
           pwd
@@ -74,7 +77,7 @@ jobs:
           ls -la
           echo "=== app ==="
           find app -maxdepth 2 -type f | sort
-          
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3 # Это гарантирует, что создастся кастомный билдер с поддержкой кэша
 
@@ -96,7 +99,7 @@ jobs:
 
 
       - name: Deploy web
-        env: 
+        env:
           ANSIBLE_HOST_KEY_CHECKING: "False" # чтобы не выскакивал вопрос "это новое подключение, доверять ли ему"
           VAULT_PASS: ${{ secrets.ANSIBLE_VAULT_PASSWORD }}
         run: |
@@ -107,10 +110,8 @@ jobs:
             -e "github_repository_name=${{ github.repository }}" \
             -e "ghcr_token=${{ secrets.GITHUB_TOKEN }}" \
             -e "ghcr_user=${{ github.actor }}" \
-            -e "container_image_version=0.${{ github.run_number }}" 
+            -e "container_image_version=0.${{ github.run_number }}"
           rm .vault_pass
-
-
 
 
   bot-build-and-deploy:
@@ -132,7 +133,7 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3 # Это гарантирует, что создастся кастомный билдер с поддержкой кэша
 
-          
+
       - name: Build and Push bot image to GHCR
         uses: docker/build-push-action@v5
         with:
@@ -152,7 +153,7 @@ jobs:
 
 
       - name: Deploy bot
-        env: 
+        env:
           ANSIBLE_HOST_KEY_CHECKING: "False" # чтобы не выскакивал вопрос "это новое подключение, доверять ли ему"
           VAULT_PASS: ${{ secrets.ANSIBLE_VAULT_PASSWORD }}
         run: |
@@ -163,11 +164,10 @@ jobs:
             -e "github_repository_name=${{ github.repository }}" \
             -e "ghcr_token=${{ secrets.GITHUB_TOKEN }}" \
             -e "ghcr_user=${{ github.actor }}" \
-            -e "container_image_version=0.${{ github.run_number }}" 
+            -e "container_image_version=0.${{ github.run_number }}"
           rm .vault_pass
 
 
-  
   ansible-deploy:
     needs: changes #требуется получить результаты проверки changes
     if: needs.changes.outputs.CI-CD == 'true' &&
@@ -186,7 +186,7 @@ jobs:
 
 
       - name: Deploy
-        env: 
+        env:
           ANSIBLE_HOST_KEY_CHECKING: "False" # чтобы не выскакивал вопрос "это новое подключение, доверять ли ему"
           VAULT_PASS: ${{ secrets.ANSIBLE_VAULT_PASSWORD }}
         run: |
@@ -196,5 +196,5 @@ jobs:
             -e "github_repository_name=${{ github.repository }}" \
             -e "ghcr_token=${{ secrets.GITHUB_TOKEN }}" \
             -e "ghcr_user=${{ github.actor }}" \
-            -e "container_image_version=keep_stable" 
+            -e "container_image_version=keep_stable"
           rm .vault_pass

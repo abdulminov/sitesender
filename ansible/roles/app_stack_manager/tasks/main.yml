@@ -33,8 +33,10 @@
     dest: "{{ item.dest }}"
     mode: "0600" # было 0644
   loop:
-    - { src: "app-stack.service.j2", dest: "/home/{{ deployer }}/.config/systemd/user/app-stack.service" }
-    - { src: "{{ node_type }}-compose.yml", dest: "{{ app_dir }}/docker-compose.yml" }
+    - src: "app-stack.service.j2"
+      dest: "/home/{{ deployer }}/.config/systemd/user/app-stack.service"
+    - src: "{{ node_type }}-compose.yml"
+      dest: "{{ app_dir }}/docker-compose.yml"
     # node_type = masters/workers, переменная в group_vars
     #notify: "App_stack_manager - restart app stack"
 
@@ -140,8 +142,10 @@
         dest: "{{ item.dest }}"
         mode: "0644"
       loop:
-        - { src: "app-stack.service.j2", dest: "/home/{{ deployer }}/.config/systemd/user/app-stack.service" }
-        - { src: "{{ node_type }}-compose.yml", dest: "{{ app_dir }}/docker-compose.yml" }
+        - src: "app-stack.service.j2"
+          dest: "/home/{{ deployer }}/.config/systemd/user/app-stack.service"
+        - src: "{{ node_type }}-compose.yml"
+          dest: "{{ app_dir }}/docker-compose.yml"
       vars:
         image_name: "{{rollback_image.stdout}}"
 
@@ -178,7 +182,9 @@
 
     - name: Сообщить об успешном откате
       ansible.builtin.fail:
-        msg: "Деплой новой версии завершился ошибкой, но система была успешно откатана на стабильный образ: {{ rollback_image.stdout }}"
+        msg: >-
+          Деплой новой версии завершился ошибкой, но система была успешно откатана
+          на стабильный образ: {{ rollback_image.stdout }}
 
 
 # МИГРАЦИИ (только для мастера)

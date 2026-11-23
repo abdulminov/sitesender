@@ -78,16 +78,17 @@
         state: directory
         owner: "{{ deployer }}"
         group: "{{ deployer }}"
-        mode: "0755" # Ansible сам поменяет на нужные через ACL
+        mode: "0755"
+        # Ansible сам поменяет на нужные через ACL
 
     - name: Set timezone to Asia/Novosibirsk
       become: true
       timezone:
         name: Asia/Novosibirsk
 
-          #- name: Фиксируем правильный шлюз в cron для автозагрузки
-          #become: yes
-          #cron:
-          #name: "Fix default gateway for VK"
-          #special_time: reboot
-          #job: "/usr/sbin/ip route replace default via 192.168.88.1 dev eth1"
+        #- name: Фиксируем правильный шлюз в cron для автозагрузки
+        #become: yes
+        #cron:
+        #name: "Fix default gateway for VK"
+        #special_time: reboot
+        #job: "/usr/sbin/ip route replace default via 192.168.88.1 dev eth1"

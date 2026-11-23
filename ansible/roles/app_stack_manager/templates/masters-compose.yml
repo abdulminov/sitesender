@@ -1,4 +1,3 @@
-
 services:
   db:
     image: docker.io/library/postgres:15
@@ -6,7 +5,12 @@ services:
     restart: always
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./init-db:/docker-entrypoint-initdb.d #монтируем папку под специальным именем. У официального образа Postgres есть магия: если положить .sql файл в папку /docker-entrypoint-initdb.d/ внутри контейнера, он выполнит загрузку этой базы только один раз — при самом первом создании базы.
+      - ./init-db:/docker-entrypoint-initdb.d
+      #монтируем папку под специальным именем. У официального образа
+      # Postgres есть магия:
+      #если положить .sql файл в папку /docker-entrypoint-initdb.d/
+      #внутри контейнера, он выполнит загрузку этой базы только один
+      #раз — при самом первом создании базы.
 
     ports:
       - "5432:5432"
@@ -19,8 +23,8 @@ services:
 
   web:
     #volumes:
-      #      - ./config/settings.py:/code/config/settings.py # МОНТИРУЕМ ПОВЕРХ остальное.
-    image: {{ image_name }}
+    #      - ./config/settings.py:/code/config/settings.py # МОНТИРУЕМ ПОВЕРХ остальное.
+    image: "{{ image_name }}"
     container_name: master_web
     command: python manage.py runserver 0.0.0.0:8000
     restart: always
@@ -41,7 +45,7 @@ services:
       test: [
         "CMD-SHELL",
         "python -c 'import urllib.request; urllib.request.urlopen(\"http://127.0.0.1:8000/health\", timeout=3)'"
-        ]
+      ]
       interval: 10s
       timeout: 5s
       retries: 6

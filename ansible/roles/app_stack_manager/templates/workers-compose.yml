@@ -2,9 +2,9 @@ name: worker_app_bot
 
 services:
   bot:
-    image: {{ image_name }} 
+    image: "{{ image_name }}"
     container_name: worker_app_bot
-    volumes: 
+    volumes:
       - ~/app/cookies.txt:/code/cookies.txt:rw
     command: sh -c "sleep 10 && python SiteSender.py"
     restart: always
@@ -25,7 +25,7 @@ services:
       test: [
         "CMD-SHELL",
         "python -c 'import urllib.request; urllib.request.urlopen(\"http://127.0.0.1:5000/health\", timeout=3)'"
-        ]
+      ]
       interval: 10s
       timeout: 5s
       retries: 6
