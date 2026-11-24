@@ -3,6 +3,7 @@
   hosts: cluster
   become: true
 
+
   tasks:
     - name: Зеркало Яндекса для APT (основной репозиторий)
       replace:

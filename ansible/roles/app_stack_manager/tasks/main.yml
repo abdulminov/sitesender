@@ -37,8 +37,8 @@
       dest: "/home/{{ deployer }}/.config/systemd/user/app-stack.service"
     - src: "{{ node_type }}-compose.yml"
       dest: "{{ app_dir }}/docker-compose.yml"
-    # node_type = masters/workers, переменная в group_vars
-    #notify: "App_stack_manager - restart app stack"
+      # node_type = masters/workers, переменная в group_vars
+      #notify: "App_stack_manager - restart app stack"
 
 - name: Копирование cookies для bot
   ansible.builtin.copy:
