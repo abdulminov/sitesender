@@ -26,7 +26,7 @@ jobs:
         id: filter
         uses: dorny/paths-filter@v3
         with:
-          #base: ${{ github.ref }}
+          base: ${{ github.ref }}
           filters: |
             web:
               - 'app/web/**'
@@ -41,6 +41,20 @@ jobs:
   test-and-lint:
     #проверка кода
     runs-on: self-hosted
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_DB: bot_db
+          POSTGRES_USER: admin
+          POSTGRES_PASSWORD: ci_test_password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -51,9 +65,21 @@ jobs:
       - name: Run YAML linting
         run: /home/runner/ci-tools-venv/bin/yamllint .
 
-      - name: Run Django Tests
-        run: echo "Тут мы прогоняем python manage.py test"
+      - name: Install dependencies
+        run: |
+          /home/runner/django-test-venv/bin/python -m pip install --upgrade pip
+          /home/runner/django-test-venv/bin/python -m pip install -r app/web/requirements.txt
 
+      - name: Run Django Tests
+        env:
+            PYTHONPATH: app/common
+            DB_HOST: 127.0.0.1
+            DB_PORT: 5432
+            DB_NAME: bot_db
+            DB_USER: admin
+            DB_PASSWORD: ci_test_password
+        run: |
+            /home/runner/django-test-venv/bin/python app/web/manage.py test
 
   web-build-and-deploy:
     needs: changes #требуется получить результаты проверки changes
