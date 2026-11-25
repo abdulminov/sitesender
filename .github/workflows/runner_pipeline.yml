@@ -73,12 +73,12 @@ jobs:
 
       - name: Run Django Tests
         env:
-            PYTHONPATH: app/common
-            DB_HOST: 127.0.0.1
-            DB_PORT: 5432
-            DB_NAME: bot_db
-            DB_USER: admin
-            DB_PASSWORD: ci_test_password
+          PYTHONPATH: app/common
+          DB_HOST: 127.0.0.1
+          DB_PORT: 5432
+          DB_NAME: bot_db
+          DB_USER: admin
+          DB_PASSWORD: ci_test_password
         run: |
             /home/runner/django-test-venv/bin/python app/web/manage.py test
 
